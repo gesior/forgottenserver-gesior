@@ -62,12 +62,18 @@ class IOLoginData
 
 		static bool savePlayerItems(uint32_t guid, Item** inventory, std::map<uint32_t, DepotChest*>& depotChests, Inbox* inbox, int16_t lastDepotId, Database* database = nullptr);
 
+		static bool savePlayerBinaryItems(uint32_t guid, Item** inventory, std::map<uint32_t, DepotChest*>& depotChests, Inbox* inbox, int16_t lastDepotId, Database* db);
+
 	private:
 		using ItemMap = std::map<uint32_t, std::pair<Item*, uint32_t>>;
 
 		static void loadPlayerItems(Player* player, Database* db);
 		static void loadItems(ItemMap& itemMap, DBResult_ptr result);
-		static bool saveItems(uint32_t guid, const ItemBlockList& itemList, DBInsert& query_insert, PropWriteStream& propWriteStream, BinaryPlayerDataType type = BINARY_TYPE_NONE);
+		static bool saveItems(uint32_t guid, const ItemBlockList& itemList, DBInsert& query_insert, PropWriteStream& propWriteStream);
+
+		static void loadPlayerBinaryItems(Player* player, Database* db);
+		static Item* loadBinaryItem(PropStream& itemsStream, Container* parent);
+		static bool saveBinaryItem(Item*item, PropWriteStream& itemsStream);
 };
 
 class PlayerCacheData;
