@@ -181,10 +181,8 @@ Item* Item::clone() const
 	Item* item = Item::CreateItem(id, count);
 	if (attributes) {
 		item->attributes.reset(new ItemAttributes(*attributes));
-		if (item->getDuration() > 0) {
-			item->incrementReferenceCounter();
-			item->setDecaying(DECAYING_TRUE);
-			g_game.toDecayItems.push_front(item);
+		if (item->getDurationLeft() > 0) {
+			g_game.startDecay(item);
 		}
 	}
 	return item;
@@ -258,15 +256,27 @@ void Item::setID(uint16_t newid)
 	uint32_t newDuration = it.decayTime * 1000;
 
 	if (newDuration == 0 && !it.stopTime && it.decayTo < 0) {
-		removeAttribute(ITEM_ATTRIBUTE_DECAYSTATE);
+		g_game.stopDecay(this);
 		removeAttribute(ITEM_ATTRIBUTE_DURATION);
+		removeAttribute(ITEM_ATTRIBUTE_DECAY_TIMESTAMP);
 	}
 
 	removeAttribute(ITEM_ATTRIBUTE_CORPSEOWNER);
 
-	if (newDuration > 0 && (!prevIt.stopTime || !hasAttribute(ITEM_ATTRIBUTE_DURATION))) {
-		setDecaying(DECAYING_FALSE);
-		setDuration(newDuration);
+	if (it.decayType == DECAY_TYPE_NORMAL) {
+		if (newDuration > 0 && (!prevIt.stopTime || !hasAttribute(ITEM_ATTRIBUTE_DURATION))) {
+			g_game.stopDecay(this);
+			setDuration(newDuration);
+		} else if (!canDecay()) {
+			g_game.stopDecay(this);
+		}
+	}
+}
+
+void Item::setParent(Cylinder* cylinder) {
+	parent = cylinder;
+	if (parent == nullptr) {
+		g_game.stopDecay(this);
 	}
 }
 
@@ -462,18 +472,6 @@ Attr_ReadValue Item::readAttr(AttrTypes_t attr, PropStream& propStream)
 			break;
 		}
 
-		case ATTR_DECAYING_STATE: {
-			uint8_t state;
-			if (!propStream.read<uint8_t>(state)) {
-				return ATTR_READ_ERROR;
-			}
-
-			if (state != DECAYING_FALSE) {
-				setDecaying(DECAYING_PENDING);
-			}
-			break;
-		}
-
 		case ATTR_NAME: {
 			std::string name;
 			if (!propStream.readString(name)) {
@@ -571,6 +569,16 @@ Attr_ReadValue Item::readAttr(AttrTypes_t attr, PropStream& propStream)
 			}
 
 			setIntAttr(ITEM_ATTRIBUTE_SHOOTRANGE, shootRange);
+			break;
+		}
+
+		case ATTR_DECAY_TIMESTAMP: {
+			int64_t decayTimestamp;
+			if (!propStream.read<int64_t>(decayTimestamp)) {
+				return ATTR_READ_ERROR;
+			}
+
+			setInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP, decayTimestamp);
 			break;
 		}
 
@@ -718,15 +726,13 @@ void Item::serializeAttr(PropWriteStream& propWriteStream) const
 		propWriteStream.writeString(specialDesc);
 	}
 
+	if (items[id].decayType == DECAY_TYPE_TIMESTAMP && hasAttribute(ITEM_ATTRIBUTE_DECAY_TIMESTAMP)) {
+		propWriteStream.write<uint8_t>(ATTR_DECAY_TIMESTAMP);
+		propWriteStream.write<int64_t>(getInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP));
+	}
 	if (hasAttribute(ITEM_ATTRIBUTE_DURATION)) {
 		propWriteStream.write<uint8_t>(ATTR_DURATION);
-		propWriteStream.write<uint32_t>(getIntAttr(ITEM_ATTRIBUTE_DURATION));
-	}
-
-	ItemDecayState_t decayState = getDecaying();
-	if (decayState == DECAYING_TRUE || decayState == DECAYING_PENDING) {
-		propWriteStream.write<uint8_t>(ATTR_DECAYING_STATE);
-		propWriteStream.write<uint8_t>(decayState);
+		propWriteStream.write<uint32_t>(getDurationLeft());
 	}
 
 	if (hasAttribute(ITEM_ATTRIBUTE_NAME)) {
@@ -1333,8 +1339,8 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 	}
 
 	if (it.showDuration) {
-		if (item && item->hasAttribute(ITEM_ATTRIBUTE_DURATION)) {
-			uint32_t duration = item->getDuration() / 1000;
+		if (item && (item->hasAttribute(ITEM_ATTRIBUTE_DURATION) || item->hasAttribute(ITEM_ATTRIBUTE_DECAY_TIMESTAMP))) {
+			uint32_t duration = item->getDurationLeft() / 1000;
 			s << " that will expire in ";
 
 			if (duration >= 86400) {
@@ -1695,6 +1701,13 @@ ItemAttributes::Attribute& ItemAttributes::getAttr(itemAttrTypes type)
 void Item::startDecaying()
 {
 	g_game.startDecay(this);
+}
+
+void Item::stopDecaying()
+{
+	if (items[id].decayType != DECAY_TYPE_TIMESTAMP) {
+		g_game.stopDecay(this);
+	}
 }
 
 bool Item::hasMarketAttributes() const

@@ -165,6 +165,7 @@ enum ItemParseAttributes_t {
 	ITEM_PARSE_WALKSTACK,
 	ITEM_PARSE_BLOCKING,
 	ITEM_PARSE_ALLOWDISTREAD,
+	ITEM_PARSE_DECAY_TYPE,
 };
 
 struct Abilities {
@@ -321,6 +322,7 @@ class ItemType
 		uint16_t rotateTo = 0;
 		int32_t runeMagLevel = 0;
 		int32_t runeLevel = 0;
+		ItemDecayType_t decayType = DECAY_TYPE_NORMAL;
 
 		CombatType_t combatType = COMBAT_NONE;
 

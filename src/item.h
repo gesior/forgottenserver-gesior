@@ -62,12 +62,6 @@ enum TradeEvents_t {
 	ON_TRADE_CANCEL,
 };
 
-enum ItemDecayState_t : uint8_t {
-	DECAYING_FALSE = 0,
-	DECAYING_TRUE,
-	DECAYING_PENDING,
-};
-
 enum AttrTypes_t {
 	//ATTR_DESCRIPTION = 1,
 	//ATTR_EXT_FILE = 2,
@@ -85,7 +79,7 @@ enum AttrTypes_t {
 	ATTR_HOUSEDOORID = 14,
 	ATTR_COUNT = 15,
 	ATTR_DURATION = 16,
-	ATTR_DECAYING_STATE = 17,
+	//ATTR_DECAYING_STATE = 17,
 	ATTR_WRITTENDATE = 18,
 	ATTR_WRITTENBY = 19,
 	ATTR_SLEEPERGUID = 20,
@@ -102,7 +96,8 @@ enum AttrTypes_t {
 	ATTR_ARMOR = 31,
 	ATTR_HITCHANCE = 32,
 	ATTR_SHOOTRANGE = 33,
-	ATTR_CUSTOM_ATTRIBUTES = 34
+	ATTR_CUSTOM_ATTRIBUTES = 34,
+	ATTR_DECAY_TIMESTAMP = 35,
 };
 
 enum Attr_ReadValue {
@@ -198,18 +193,15 @@ class ItemAttributes
 		void setDuration(int32_t time) {
 			setIntAttr(ITEM_ATTRIBUTE_DURATION, time);
 		}
-		void decreaseDuration(int32_t time) {
-			increaseIntAttr(ITEM_ATTRIBUTE_DURATION, -time);
-		}
 		uint32_t getDuration() const {
 			return getIntAttr(ITEM_ATTRIBUTE_DURATION);
 		}
 
-		void setDecaying(ItemDecayState_t decayState) {
-			setIntAttr(ITEM_ATTRIBUTE_DECAYSTATE, decayState);
+		void setDecayTimestamp(int64_t timestamp) {
+			setIntAttr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP, timestamp);
 		}
-		ItemDecayState_t getDecaying() const {
-			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
+		int64_t getDecayTimestamp() const {
+			return getIntAttr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP);
 		}
 
 		struct CustomAttribute
@@ -497,7 +489,7 @@ class ItemAttributes
 
 	public:
 		static bool isIntAttrType(itemAttrTypes type) {
-			return (type & 0x7FFE13) != 0;
+			return (type & 0xFFFE13) != 0;
 		}
 		static bool isStrAttrType(itemAttrTypes type) {
 			return (type & 0x1EC) != 0;
@@ -585,6 +577,16 @@ class Item : virtual public Thing
 		}
 		void setStrAttr(itemAttrTypes type, const std::string& value) {
 			getAttributes()->setStrAttr(type, value);
+		}
+
+		int64_t getInt64Attr(itemAttrTypes type) const {
+			if (!attributes) {
+				return 0;
+			}
+			return attributes->getIntAttr(type);
+		}
+		void setInt64Attr(itemAttrTypes type, int64_t value) {
+			getAttributes()->setIntAttr(type, value);
 		}
 
 		int32_t getIntAttr(itemAttrTypes type) const {
@@ -735,11 +737,13 @@ class Item : virtual public Thing
 			return getIntAttr(ITEM_ATTRIBUTE_CORPSEOWNER);
 		}
 
+		ItemDecayType_t getDecayType()
+		{
+			return items[id].decayType;
+		}
+
 		void setDuration(int32_t time) {
 			setIntAttr(ITEM_ATTRIBUTE_DURATION, time);
-		}
-		void decreaseDuration(int32_t time) {
-			increaseIntAttr(ITEM_ATTRIBUTE_DURATION, -time);
 		}
 		uint32_t getDuration() const {
 			if (!attributes) {
@@ -748,14 +752,37 @@ class Item : virtual public Thing
 			return getIntAttr(ITEM_ATTRIBUTE_DURATION);
 		}
 
-		void setDecaying(ItemDecayState_t decayState) {
-			setIntAttr(ITEM_ATTRIBUTE_DECAYSTATE, decayState);
-		}
-		ItemDecayState_t getDecaying() const {
+		uint32_t getDurationLeft() const {
 			if (!attributes) {
-				return DECAYING_FALSE;
+				return 0;
 			}
-			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
+
+			if (hasAttribute(ITEM_ATTRIBUTE_DECAY_TIMESTAMP)) {
+				if (getInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP) > OTSYS_TIME()) {
+					return getInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP) - OTSYS_TIME();
+				} else {
+					return 0;
+				}
+			} else {
+				return getIntAttr(ITEM_ATTRIBUTE_DURATION);
+			}
+		}
+		void setDurationLeft(int32_t duration) {
+			if (items[id].decayType == DECAY_TYPE_NORMAL) {
+				setIntAttr(ITEM_ATTRIBUTE_DURATION, duration);
+			} else {
+				setInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP, OTSYS_TIME() + duration);
+			}
+		}
+
+		void setDecayTimestamp(int64_t timestamp) {
+			setInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP, timestamp);
+		}
+		int64_t getDecayTimestamp() const {
+			if (!attributes) {
+				return 0;
+			}
+			return getInt64Attr(ITEM_ATTRIBUTE_DECAY_TIMESTAMP);
 		}
 
 		static std::string getDescription(const ItemType& it, int32_t lookDistance, const Item* item = nullptr, int32_t subType = -1, bool addArticle = true);
@@ -926,9 +953,13 @@ class Item : virtual public Thing
 		void setUniqueId(uint16_t n);
 
 		void setDefaultDuration() {
-			uint32_t duration = getDefaultDuration();
-			if (duration != 0) {
-				setDuration(duration);
+			if (items[id].decayType == DECAY_TYPE_NORMAL) {
+				uint32_t duration = getDefaultDuration();
+				if (duration != 0) {
+					setDuration(duration);
+				}
+			} else if (items[id].decayType == DECAY_TYPE_TIMESTAMP) {
+				setDecayTimestamp(OTSYS_TIME() + getDefaultDuration());
 			}
 		}
 		uint32_t getDefaultDuration() const {
@@ -946,6 +977,7 @@ class Item : virtual public Thing
 		virtual void onTradeEvent(TradeEvents_t, Player*) {}
 
 		virtual void startDecaying();
+		virtual void stopDecaying();
 
 		bool isLoadedFromMap() const {
 			return loadedFromMap;
@@ -978,9 +1010,7 @@ class Item : virtual public Thing
 		Cylinder* getParent() const override {
 			return parent;
 		}
-		void setParent(Cylinder* cylinder) override {
-			parent = cylinder;
-		}
+		void setParent(Cylinder* cylinder) override;
 		Cylinder* getTopParent();
 		const Cylinder* getTopParent() const;
 		Tile* getTile() override;

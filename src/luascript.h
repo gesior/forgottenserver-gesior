@@ -717,6 +717,9 @@ class LuaScriptInterface
 		static int luaItemMoveTo(lua_State* L);
 		static int luaItemTransform(lua_State* L);
 		static int luaItemDecay(lua_State* L);
+		static int luaItemStopDecay(lua_State* L);
+		static int luaItemGetDurationLeft(lua_State* L);
+		static int luaItemSetDurationLeft(lua_State* L);
 
 		static int luaItemGetDescription(lua_State* L);
 

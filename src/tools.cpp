@@ -985,8 +985,6 @@ itemAttrTypes stringToItemAttribute(const std::string& str)
 		return ITEM_ATTRIBUTE_OWNER;
 	} else if (str == "duration") {
 		return ITEM_ATTRIBUTE_DURATION;
-	} else if (str == "decaystate") {
-		return ITEM_ATTRIBUTE_DECAYSTATE;
 	} else if (str == "corpseowner") {
 		return ITEM_ATTRIBUTE_CORPSEOWNER;
 	} else if (str == "charges") {
@@ -995,6 +993,8 @@ itemAttrTypes stringToItemAttribute(const std::string& str)
 		return ITEM_ATTRIBUTE_FLUIDTYPE;
 	} else if (str == "doorid") {
 		return ITEM_ATTRIBUTE_DOORID;
+	} else if (str == "decaytimestamp") {
+		return ITEM_ATTRIBUTE_DECAY_TIMESTAMP;
 	}
 	return ITEM_ATTRIBUTE_NONE;
 }

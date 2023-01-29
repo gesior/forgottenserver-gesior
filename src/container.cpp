@@ -681,8 +681,17 @@ void Container::internalAddThing(uint32_t, Thing* thing)
 
 void Container::startDecaying()
 {
+	Item::startDecaying();
 	for (Item* item : itemlist) {
 		item->startDecaying();
+	}
+}
+
+void Container::stopDecaying()
+{
+	Item::stopDecaying();
+	for (Item* item : itemlist) {
+		item->stopDecaying();
 	}
 }
 
