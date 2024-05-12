@@ -75,6 +75,13 @@ if (BUILD_TESTING)
 endif ()
 find_package(Boost 1.66.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
+if (NOT DEFINED DISABLE_STATS OR NOT DISABLE_STATS)
+    message(STATUS "OTS stats enabled. Run 'cmake -DDISABLE_STATS=1 ..' to disable")
+    ADD_DEFINITIONS(-DSTATS_ENABLED)
+else ()
+    message(STATUS "OTS stats disabled. Run 'cmake -DDISABLE_STATS=0 ..' to enable")
+endif ()
+
 include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PUGIXML_INCLUDE_DIR})
 
 set(CMAKE_CXX_STANDARD 20)

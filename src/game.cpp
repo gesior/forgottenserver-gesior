@@ -22,6 +22,7 @@
 #include "scheduler.h"
 #include "server.h"
 #include "spells.h"
+#include "stats.h"
 #include "talkaction.h"
 #include "weapons.h"
 #include "script.h"

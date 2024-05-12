@@ -21,6 +21,7 @@
 #include "events.h"
 #include "scheduler.h"
 #include "databasetasks.h"
+#include "stats.h"
 
 extern Scheduler g_scheduler;
 extern DatabaseTasks g_databaseTasks;
