@@ -12,7 +12,7 @@
 
 void printXMLError(const std::string& where, const std::string& fileName, const pugi::xml_parse_result& result);
 
-std::string transformToSHA1(const std::string& input);
+std::string transformToSHA1(std::string_view input);
 std::string generateToken(const std::string& key, uint32_t ticks);
 
 void replaceString(std::string& str, const std::string& sought, const std::string& replacement);
@@ -79,5 +79,19 @@ const char* getReturnMessage(ReturnValue value);
 int64_t OTSYS_TIME();
 
 SpellGroup_t stringToSpellGroup(const std::string& value);
+
+namespace tfs {
+
+#if __has_cpp_attribute(__cpp_lib_to_underlying)
+
+inline constexpr auto to_underlying(auto e) noexcept { return std::to_underlying(e); }
+
+#else
+
+inline constexpr auto to_underlying(auto e) noexcept { return static_cast<std::underlying_type_t<decltype(e)>>(e); }
+
+#endif
+
+} // namespace tfs
 
 #endif

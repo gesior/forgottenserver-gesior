@@ -48,6 +48,8 @@ class Protocol : public std::enable_shared_from_this<Protocol>
 		}
 
 	protected:
+		static constexpr size_t RSA_BUFFER_LENGTH = 128;
+
 		void disconnect() const {
 			if (auto connection = getConnection()) {
 				connection->close();

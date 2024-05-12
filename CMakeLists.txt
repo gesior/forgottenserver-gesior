@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.17)
 
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
@@ -10,11 +10,11 @@ add_executable(tfs ${tfs_SRC})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-set_target_properties(tfs PROPERTIES CXX_STANDARD 17)
+set_target_properties(tfs PROPERTIES CXX_STANDARD 20)
 set_target_properties(tfs PROPERTIES CXX_STANDARD_REQUIRED ON)
 
 if (NOT WIN32)
-    add_compile_options(-Wall -Werror -pipe -fvisibility=hidden)
+    add_compile_options(-Wall -Wextra -Wnon-virtual-dtor -pedantic -Werror -pipe -fvisibility=hidden)
 endif ()
 
 set(CMAKE_CXX_FLAGS_PERFORMANCE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
@@ -24,12 +24,8 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif ()
 
 # Find packages.
-find_package(CryptoPP QUIET)
-if (CryptoPP_FOUND)  # vcpkg-provided cmake package called CryptoPP
-    set(Crypto++_LIBRARIES "cryptopp-static")
-else()
-    find_package(Crypto++ REQUIRED)
-endif ()
+find_package(OpenSSL 3.0.0 REQUIRED COMPONENTS Crypto)
+
 find_package(fmt 6.1.2 REQUIRED)
 
 # Look for vcpkg-provided libmariadb first
@@ -61,7 +57,7 @@ else ()
     find_package(Lua REQUIRED)
 endif ()
 
-find_package(Boost 1.66.0 REQUIRED COMPONENTS date_time system filesystem iostreams)
+find_package(Boost 1.66.0 REQUIRED COMPONENTS date_time system iostreams)
 
 if (NOT DEFINED DISABLE_STATS OR NOT DISABLE_STATS)
     message(STATUS "OTS stats enabled. Run 'cmake -DDISABLE_STATS=1 ..' to disable")
@@ -70,15 +66,18 @@ else ()
     message(STATUS "OTS stats disabled. Run 'cmake -DDISABLE_STATS=0 ..' to enable")
 endif ()
 
-include_directories(${Boost_INCLUDE_DIRS} ${Crypto++_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PUGIXML_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PUGIXML_INCLUDE_DIR})
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 target_link_libraries(tfs PRIVATE
         Boost::date_time
         Boost::system
-        Boost::filesystem
         Boost::iostreams
         fmt::fmt
+        OpenSSL::Crypto
         ${CMAKE_THREAD_LIBS_INIT}
-        ${Crypto++_LIBRARIES}
         ${LUA_LIBRARIES}
         ${MYSQL_CLIENT_LIBS}
         ${PUGIXML_LIBRARIES}
