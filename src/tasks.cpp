@@ -5,6 +5,7 @@
 
 #include "tasks.h"
 #include "game.h"
+#include "stats.h"
 
 extern Game g_game;
 

@@ -122,8 +122,11 @@ class TileItemVector : private ItemVector
 			}
 			return *getBeginDownItem();
 		}
-		void addDownItemCount(int32_t increment) {
-			downItemCount += increment;
+		void increaseDownItemCount() {
+			downItemCount += 1;
+		}
+		void decreaseDownItemCount() {
+			downItemCount -= 1;
 		}
 
 	private:

@@ -85,9 +85,10 @@ ExperienceStages loadLuaStages(lua_State* L)
 	lua_pushnil(L);
 	while (lua_next(L, -2) != 0) {
 		const auto tableIndex = lua_gettop(L);
-		auto minLevel = LuaScriptInterface::getField<uint32_t>(L, tableIndex, "minlevel");
-		auto maxLevel = LuaScriptInterface::getField<uint32_t>(L, tableIndex, "maxlevel");
-		auto multiplier = LuaScriptInterface::getField<float>(L, tableIndex, "multiplier");
+		auto minLevel = LuaScriptInterface::getField<uint32_t>(L, tableIndex, "minlevel", 1);
+		auto maxLevel =
+			LuaScriptInterface::getField<uint32_t>(L, tableIndex, "maxlevel", std::numeric_limits<uint32_t>::max());
+		auto multiplier = LuaScriptInterface::getField<float>(L, tableIndex, "multiplier", 1);
 		stages.emplace_back(minLevel, maxLevel, multiplier);
 		lua_pop(L, 4);
 	}
@@ -113,7 +114,7 @@ ExperienceStages loadXMLStages()
 				return {};
 			}
 		} else {
-			uint32_t minLevel, maxLevel, multiplier;
+			uint32_t minLevel = 1, maxLevel = std::numeric_limits<uint32_t>::max(), multiplier = 1;
 
 			if (auto minLevelAttribute = stageNode.attribute("minlevel")) {
 				minLevel = pugi::cast<uint32_t>(minLevelAttribute.value());
@@ -127,8 +128,6 @@ ExperienceStages loadXMLStages()
 
 			if (auto multiplierAttribute = stageNode.attribute("multiplier")) {
 				multiplier = pugi::cast<uint32_t>(multiplierAttribute.value());
-			} else {
-				multiplier = 1;
 			}
 
 			stages.emplace_back(minLevel, maxLevel, multiplier);

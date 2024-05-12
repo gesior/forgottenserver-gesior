@@ -5,20 +5,6 @@
 
 class Task;
 
-#ifdef STATS_ENABLED
-#define createTask(function) createTaskWithStats(function, #function, __FUNCTION__)
-#define createTimedTask(delay, function) createTaskWithStats(delay, function, #function, __FUNCTION__)
-#define createSchedulerTask(delay, function) createSchedulerTaskWithStats(delay, function, #function, __FUNCTION__)
-#define addGameTask(function, ...) addGameTaskWithStats(function, #function, __FUNCTION__, __VA_ARGS__)
-#define addGameTaskTimed(delay, function, ...) addGameTaskTimedWithStats(delay, function, #function, __FUNCTION__, __VA_ARGS__)
-#else
-#define createTask(function) createTaskWithStats(function, "", "")
-#define createTimedTask(delay, function) createTaskWithStats(delay, function, "", "")
-#define createSchedulerTask(delay, function) createSchedulerTaskWithStats(delay, function, "", "")
-#define addGameTask(function, ...) addGameTaskWithStats(function, "", "", __VA_ARGS__)
-#define addGameTaskTimed(delay, function, ...) addGameTaskTimedWithStats(delay, function, "", "", __VA_ARGS__)
-#endif
-
 struct Stat {
 	Stat(uint64_t _executionTime, const std::string& _description, const std::string& _extraDescription) :
 			executionTime(_executionTime), description(_description), extraDescription(_extraDescription) {};

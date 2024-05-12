@@ -62,9 +62,9 @@ void Stats::threadMain() {
 				float execution_time = 0;
 				for (auto &it : dispatcher.stats)
 					execution_time += it.second.executionTime;
-				ss << "Thread: " << ++threadId << " Cpu usage: " << (execution_time / 10000.) / ((float) DUMP_INTERVAL) << "%" <<
-				   " Idle: " << (dispatcher.waitTime / 10000.) / ((float) DUMP_INTERVAL) << "%" <<
-				   " Other: " << 100. - (((execution_time + dispatcher.waitTime) / 10000.) / ((float) DUMP_INTERVAL)) << "%";
+				ss << "Thread: " << ++threadId << " Cpu usage: " << (execution_time / 10000.) / static_cast<float>(DUMP_INTERVAL) << "%" <<
+				   " Idle: " << (dispatcher.waitTime / 10000.) / static_cast<float>(DUMP_INTERVAL) << "%" <<
+				   " Other: " << 100. - (((execution_time + dispatcher.waitTime) / 10000.) / static_cast<float>(DUMP_INTERVAL)) << "%";
 				ss << " Players online: " << playersOnline << "\n";
 				if(dispatcher.waitTime > 0)
 					writeStats("dispatcher.log", dispatcher.stats, ss.str());
@@ -223,8 +223,8 @@ void Stats::writeStats(const std::string& file, const statsMap& stats, const std
 	for(auto& it : pairs)
 		total_time += it.second.executionTime;
 	for(auto& it : pairs) {
-		float percent = 100 * (float)it.second.executionTime / total_time;
-		float realPercent = (float)it.second.executionTime / ((float)DUMP_INTERVAL * 10000.);
+		float percent = 100 * static_cast<float>(it.second.executionTime) / total_time;
+		float realPercent = static_cast<float>(it.second.executionTime) / (static_cast<float>(DUMP_INTERVAL) * 10000.);
 		if(percent > 0.1)
 			out << std::setw(10) << it.second.executionTime / 1000000 << std::setw(10) << it.second.calls
 				<< std::setw(15) << std::setprecision(5) << std::fixed << percent << "%" << std::setw(15) << std::setprecision(5) << std::fixed << realPercent << "%" << " " << it.first << "\n";

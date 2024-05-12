@@ -77,11 +77,11 @@ OutputMessage_ptr Protocol::getOutputBuffer(int32_t size)
 
 bool Protocol::RSA_decrypt(NetworkMessage& msg)
 {
-	if ((msg.getLength() - msg.getBufferPosition()) < RSA_BUFFER_LENGTH) {
+	if (msg.getRemainingBufferLength() < RSA_BUFFER_LENGTH) {
 		return false;
 	}
 
-	tfs::rsa::decrypt(reinterpret_cast<uint8_t*>(msg.getBuffer()) + msg.getBufferPosition(), RSA_BUFFER_LENGTH);
+	tfs::rsa::decrypt(msg.getRemainingBuffer(), RSA_BUFFER_LENGTH);
 	return msg.getByte() == 0;
 }
 

@@ -1,38 +1,33 @@
 FROM alpine:3.19.0 AS build
-ARG BUILD_CORES=1
 RUN apk add --no-cache \
-  binutils \
-  boost-dev \
   build-base \
-  clang \
+  boost-dev \
   cmake \
   fmt-dev \
-  gcc \
-  gmp-dev \
   luajit-dev \
-  make \
   mariadb-connector-c-dev \
   openssl-dev \
-  pugixml-dev
+  pugixml-dev \
+  samurai
 
 COPY cmake /usr/src/forgottenserver/cmake/
 COPY src /usr/src/forgottenserver/src/
-COPY CMakeLists.txt /usr/src/forgottenserver/
-WORKDIR /usr/src/forgottenserver/build
-RUN cmake .. && make -j $BUILD_CORES
+COPY CMakeLists.txt CMakePresets.json /usr/src/forgottenserver/
+WORKDIR /usr/src/forgottenserver
+RUN cmake --preset default && cmake --build --config RelWithDebInfo --preset default
 
 FROM alpine:3.19.0
 RUN apk add --no-cache \
   boost-iostreams \
+  boost-locale \
   boost-system \
   fmt \
-  gmp \
   luajit \
   mariadb-connector-c \
-  openssl-dev \
+  openssl \
   pugixml
 
-COPY --from=build /usr/src/forgottenserver/build/tfs /bin/tfs
+COPY --from=build /usr/src/forgottenserver/build/RelWithDebInfo/tfs /bin/tfs
 COPY data /srv/data/
 COPY LICENSE README.md *.dist *.sql key.pem /srv/
 

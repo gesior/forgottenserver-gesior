@@ -4,9 +4,6 @@ services:
   server:
     build:
       context: .
-      args:
-        # default 1 core
-        BUILD_CORES: ${BUILD_CORES:-1}
     restart: always
     volumes:
       - .:/srv

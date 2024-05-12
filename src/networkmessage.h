@@ -112,6 +112,8 @@ class NetworkMessage
 			return info.position;
 		}
 
+		MsgSize_t getRemainingBufferLength() const { return info.length - info.position; }
+
 		bool setBufferPosition(MsgSize_t pos) {
 			if (pos < NETWORKMESSAGE_MAXSIZE - INITIAL_BUFFER_POSITION) {
 				info.position = pos + INITIAL_BUFFER_POSITION;
@@ -135,6 +137,8 @@ class NetworkMessage
 		const uint8_t* getBuffer() const {
 			return buffer;
 		}
+
+		uint8_t* getRemainingBuffer() { return &buffer[0] + info.position; }
 
 		uint8_t* getBodyBuffer() {
 			info.position = 2;

@@ -17,6 +17,7 @@
 #include "protocolstatus.h"
 #include "databasemanager.h"
 #include "scheduler.h"
+#include "stats.h"
 #include "databasetasks.h"
 #include "script.h"
 #include <fstream>

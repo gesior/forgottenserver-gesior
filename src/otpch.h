@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <fmt/color.h>
 #include <forward_list>
+#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
