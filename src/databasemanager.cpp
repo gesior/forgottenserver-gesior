@@ -7,8 +7,6 @@
 #include "databasemanager.h"
 #include "luascript.h"
 
-#include <fmt/format.h>
-
 extern ConfigManager g_config;
 
 bool DatabaseManager::optimizeTables()

@@ -8,7 +8,6 @@
 #define _ENABLE_ATOMIC_ALIGNMENT_FIX
 #endif
 
-#include <boost/lockfree/stack.hpp>
 
 /*
  * we use this to avoid instantiating multiple free lists for objects of the

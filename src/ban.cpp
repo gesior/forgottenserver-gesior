@@ -8,8 +8,6 @@
 #include "databasetasks.h"
 #include "tools.h"
 
-#include <fmt/format.h>
-
 bool Ban::acceptConnection(uint32_t clientIP)
 {
 	std::lock_guard<std::recursive_mutex> lockClass(lock);

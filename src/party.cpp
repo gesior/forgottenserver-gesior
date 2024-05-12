@@ -8,8 +8,6 @@
 #include "configmanager.h"
 #include "events.h"
 
-#include <fmt/format.h>
-
 extern Game g_game;
 extern ConfigManager g_config;
 extern Events* g_events;

@@ -1,9 +1,6 @@
 #ifndef TFS_STATS_H
 #define TFS_STATS_H
 
-#include <atomic>
-#include <forward_list>
-
 #include "thread_holder_base.h"
 
 class Task;

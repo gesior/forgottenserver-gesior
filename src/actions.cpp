@@ -10,7 +10,6 @@
 #include "game.h"
 #include "pugicast.h"
 #include "spells.h"
-#include <fmt/format.h>
 
 extern Game g_game;
 extern Spells* g_spells;

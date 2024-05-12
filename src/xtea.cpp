@@ -5,7 +5,6 @@
 
 #include "xtea.h"
 
-#include <array>
 #include <assert.h>
 
 namespace xtea {

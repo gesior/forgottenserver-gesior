@@ -12,8 +12,6 @@
 #include "scheduler.h"
 #include "monster.h"
 
-#include <fmt/format.h>
-
 extern Game g_game;
 extern ConfigManager g_config;
 

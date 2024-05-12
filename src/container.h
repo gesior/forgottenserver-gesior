@@ -4,8 +4,6 @@
 #ifndef FS_CONTAINER_H_5590165FD8A2451B98D71F13CD3ED8DC
 #define FS_CONTAINER_H_5590165FD8A2451B98D71F13CD3ED8DC
 
-#include <queue>
-
 #include "cylinder.h"
 #include "item.h"
 #include "tile.h"

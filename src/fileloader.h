@@ -4,10 +4,6 @@
 #ifndef FS_FILELOADER_H_9B663D19E58D42E6BFACFE5B09D7A05E
 #define FS_FILELOADER_H_9B663D19E58D42E6BFACFE5B09D7A05E
 
-#include <limits>
-#include <vector>
-#include <boost/iostreams/device/mapped_file.hpp>
-
 class PropStream;
 
 namespace OTB {

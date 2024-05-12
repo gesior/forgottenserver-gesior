@@ -8,8 +8,6 @@
 #include "item.h"
 #include "player.h"
 
-#include <set>
-
 Events::Events() :
 	scriptInterface("Event Interface")
 {

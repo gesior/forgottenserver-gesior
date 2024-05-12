@@ -4,8 +4,6 @@
 #ifndef FS_TOOLS_H_5F9A9742DA194628830AA1C64909AE43
 #define FS_TOOLS_H_5F9A9742DA194628830AA1C64909AE43
 
-#include <random>
-
 #include "position.h"
 #include "const.h"
 #include "enums.h"

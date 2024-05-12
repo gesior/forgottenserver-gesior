@@ -4,9 +4,7 @@
 #ifndef FS_DATABASE_H_A484B0CDFDE542838F506DCE3D40C693
 #define FS_DATABASE_H_A484B0CDFDE542838F506DCE3D40C693
 
-#include <boost/lexical_cast.hpp>
-
-#include <mysql/mysql.h>
+#include "pugicast.h"
 
 class DBResult;
 using DBResult_ptr = std::shared_ptr<DBResult>;
@@ -131,25 +129,20 @@ class DBResult
 		DBResult& operator=(const DBResult&) = delete;
 
 		template<typename T>
-		T getNumber(const std::string& s) const
+		T getNumber(std::string_view column) const
 		{
-			auto it = listNames.find(s);
+			auto it = listNames.find(column);
 			if (it == listNames.end()) {
-				std::cout << "[Error - DBResult::getNumber] Column '" << s << "' doesn't exist in the result set" << std::endl;
-				return static_cast<T>(0);
+				std::cout << "[Error - DBResult::getNumber] Column '" << column << "' doesn't exist in the result set"
+						  << std::endl;
+				return {};
 			}
 
-			if (row[it->second] == nullptr) {
-				return static_cast<T>(0);
+			if (!row[it->second]) {
+				return {};
 			}
 
-			T data;
-			try {
-				data = boost::lexical_cast<T>(row[it->second]);
-			} catch (boost::bad_lexical_cast&) {
-				data = 0;
-			}
-			return data;
+			return pugi::cast<T>(row[it->second]);
 		}
 
 		std::string getString(const std::string& s) const;
@@ -162,7 +155,7 @@ class DBResult
 		MYSQL_RES* handle;
 		MYSQL_ROW row;
 
-		std::map<std::string, size_t> listNames;
+		std::map<std::string_view, size_t> listNames;
 
 	friend class Database;
 };

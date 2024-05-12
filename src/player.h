@@ -21,7 +21,6 @@
 #include "mounts.h"
 #include "storeinbox.h"
 
-#include <bitset>
 
 class House;
 class NetworkMessage;

@@ -7,8 +7,6 @@
 #include "game.h"
 #include "bed.h"
 
-#include <fmt/format.h>
-
 extern Game g_game;
 
 void IOMapSerialize::loadHouseItems(Map* map)
