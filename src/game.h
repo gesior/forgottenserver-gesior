@@ -496,6 +496,8 @@ class Game
 		Quests quests;
 
 		std::forward_list<Item*> toDecayItems;
+		std::set<Creature*> checkFollowSet;
+		void addToCheckFollow(Creature* creature);
 
 		std::unordered_set<Tile*> getTilesToClean() const {
 			return tilesToClean;
@@ -519,6 +521,8 @@ class Game
 
 		void checkDecay();
 		void internalDecayItem(Item* item);
+
+		void checkFollow(bool thread);
 
 		std::unordered_map<uint32_t, Player*> players;
 		std::unordered_map<std::string, Player*> mappedPlayerNames;

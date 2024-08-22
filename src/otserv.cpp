@@ -20,6 +20,7 @@
 #include "stats.h"
 #include "databasetasks.h"
 #include "script.h"
+#include "pathfinding.h"
 #include <fstream>
 #if __has_include("gitmetadata.h")
 	#include "gitmetadata.h"
@@ -29,6 +30,7 @@ DatabaseTasks g_databaseTasks;
 Dispatcher g_dispatcher;
 Scheduler g_scheduler;
 Stats g_stats;
+PathFinding g_pathfinding(PATHFINDING_THREADS);
 
 Game g_game;
 ConfigManager g_config;
@@ -74,6 +76,7 @@ int main(int argc, char* argv[])
 #ifdef STATS_ENABLED
 	g_stats.start();
 #endif
+	g_pathfinding.start();
 
 	g_dispatcher.addTask(createTask(std::bind(mainLoader, argc, argv, &serviceManager)));
 
@@ -84,6 +87,7 @@ int main(int argc, char* argv[])
 		serviceManager.run();
 	} else {
 		std::cout << ">> No services running. The server is NOT online." << std::endl;
+		g_pathfinding.shutdown();
 		g_scheduler.shutdown();
 		g_databaseTasks.shutdown();
 		g_dispatcher.shutdown();
@@ -92,6 +96,7 @@ int main(int argc, char* argv[])
 #endif
 	}
 
+	g_pathfinding.join();
 	g_scheduler.join();
 	g_databaseTasks.join();
 	g_dispatcher.join();

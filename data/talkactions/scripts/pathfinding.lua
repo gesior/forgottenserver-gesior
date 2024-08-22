@@ -8,7 +8,7 @@ function teleportRight(playerId, stepsLeft)
 	player:teleportTo(playerPosition, true)
 	stepsLeft = stepsLeft - 1
 	if stepsLeft > 0 then
-		addEvent(teleportRight, 100, playerId, stepsLeft)
+		addEvent(teleportRight, 300, playerId, stepsLeft)
 	end
 end
 
@@ -30,7 +30,7 @@ function onSay(player, words, param)
 		player:teleportTo(Position(1000,1240, 7), true)
 		teleportRight(player:getId(), 550)
     elseif action == 5 then
-        for x = 1000, 1500, 2 do
+        for x = 1000, 1500, 1 do
             for y = 1100, 1300, 2 do
                 Game.createMonster("Orshabaal", Position(x, y, 7), false, true)
             end

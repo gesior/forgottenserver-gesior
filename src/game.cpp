@@ -19,6 +19,7 @@
 #include "items.h"
 #include "monster.h"
 #include "movement.h"
+#include "pathfinding.h"
 #include "scheduler.h"
 #include "server.h"
 #include "spells.h"
@@ -72,6 +73,7 @@ void Game::start(ServiceManager* manager)
 	}
 	g_scheduler.addEvent(createSchedulerTask(EVENT_CREATURE_THINK_INTERVAL, std::bind(&Game::checkCreatures, this, 0)));
 	g_scheduler.addEvent(createSchedulerTask(EVENT_DECAYINTERVAL, std::bind(&Game::checkDecay, this)));
+	g_scheduler.addEvent(createSchedulerTask(EVENT_PATH_FINDING, std::bind(&Game::checkFollow, this, false)));
 }
 
 GameState_t Game::getGameState() const
@@ -132,6 +134,7 @@ void Game::setGameState(GameState_t newState)
 			g_dispatcher.addTask(
 				createTask(std::bind(&Game::shutdown, this)));
 
+			g_pathfinding.stop();
 			g_scheduler.stop();
 			g_databaseTasks.stop();
 			g_dispatcher.stop();
@@ -3209,7 +3212,7 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId)
 	}
 
 	player->setAttackedCreature(attackCreature);
-	g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, this, player->getID())));
+	addToCheckFollow(player);
 }
 
 void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId)
@@ -3220,7 +3223,7 @@ void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId)
 	}
 
 	player->setAttackedCreature(nullptr);
-	g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, this, player->getID())));
+	addToCheckFollow(player);
 	player->setFollowCreature(getCreatureByID(creatureId));
 }
 
@@ -3672,6 +3675,79 @@ bool Game::internalCreatureSay(Creature* creature, SpeakClasses type, const std:
 	return true;
 }
 
+void Game::checkFollow(bool thread) {
+	static std::mutex checkFollowMutex;
+	static std::set<Creature *>::iterator it;
+	static std::set<Creature *> checkFollowSetNew;
+
+	if (!thread) {
+		AutoStat cfd1("Game::checkFollow dispatcher");
+		checkFollowSetNew = std::move(checkFollowSet);
+		checkFollowSet.clear();
+
+		auto it2 = checkFollowSetNew.begin();
+		int skipped = 0;
+		while (it2 != checkFollowSetNew.end()) {
+			// queue walking creatures path finding for next checkFollow
+			if (!(*it2)->isRemoved() && (*it2)->getWalkDelay() > EVENT_PATH_FINDING) {
+				checkFollowSet.insert((*it2));
+				it2 = checkFollowSetNew.erase(it2);
+				skipped++;
+			} else {
+				++it2;
+			}
+		}
+
+		{
+			std::cout << "check count: " << checkFollowSetNew.size() << std::endl;
+			AutoStat cfd2("Game::checkFollow run tasks");
+			it = checkFollowSetNew.begin();
+			g_pathfinding.runTask(std::bind(&Game::checkFollow, this, true));
+		}
+
+		{
+			AutoStat cfd3("Game::checkFollow steps");
+			for (auto &creature: checkFollowSetNew) {
+				creature->goToFollowCreatureContinue();
+				ReleaseCreature(creature);
+			}
+		}
+		g_scheduler.addEvent(createSchedulerTask(EVENT_PATH_FINDING, std::bind(&Game::checkFollow, this, false)));
+	} else {
+		int processed = 0;
+		std::vector<Creature*> toProcess;
+		toProcess.reserve(5);
+		while (true) {
+			checkFollowMutex.lock();
+			for (int i =0; i < 5; ++i) {
+				if (it == checkFollowSetNew.end()) {
+					break;
+				}
+				toProcess.push_back(*it);
+				++it;
+			}
+			checkFollowMutex.unlock();
+			if (toProcess.empty()) {
+				break;
+			}
+			for (Creature* creature : toProcess) {
+				checkFollowMutex.unlock();
+				creature->goToFollowCreature();
+				processed++;
+			}
+			toProcess.clear();
+		}
+		std::cout << "processed: " << processed << std::endl;
+	}
+}
+
+void Game::addToCheckFollow(Creature *creature)
+{
+	if (checkFollowSet.insert(creature).second) {
+		creature->incrementReferenceCounter();
+	}
+}
+
 void Game::checkCreatureWalk(uint32_t creatureId)
 {
 	Creature* creature = getCreatureByID(creatureId);
@@ -3686,7 +3762,7 @@ void Game::updateCreatureWalk(uint32_t creatureId)
 	Creature* creature = getCreatureByID(creatureId);
 	if (creature && creature->getHealth() > 0) {
 		creature->isUpdatePathScheduled = false;
-		creature->goToFollowCreature();
+		creature->goToFollowCreatureContinue();
 	}
 }
 
@@ -4625,6 +4701,7 @@ void Game::shutdown()
 {
 	std::cout << "Shutting down..." << std::flush;
 
+	g_pathfinding.shutdown();
 	g_scheduler.shutdown();
 	g_databaseTasks.shutdown();
 	g_dispatcher.shutdown();

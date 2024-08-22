@@ -148,7 +148,7 @@ void Creature::onThink(uint32_t interval)
 
 	if (isUpdatingPath) {
 		isUpdatingPath = false;
-		goToFollowCreature();
+		g_game.addToCheckFollow(this);
 	}
 
 	//scripting event - onThink
@@ -601,6 +601,7 @@ void Creature::onCreatureMove(Creature* creature, const Tile* newTile, const Pos
 
 	if (creature == followCreature || (creature == this && followCreature)) {
 		if (hasFollowPath) {
+			g_game.addToCheckFollow(this);
 			// default
 //			isUpdatingPath = true;
 
@@ -609,14 +610,14 @@ void Creature::onCreatureMove(Creature* creature, const Tile* newTile, const Pos
 //			g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
 
 			// algo 4
-			int64_t walkDelay = getWalkDelay();
-			if (walkDelay <= 0) {
-				g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
-			} else if(!isUpdatePathScheduled) {
-				isUpdatePathScheduled = true;
-				g_scheduler.addEvent(createSchedulerTask(walkDelay, std::bind(&Game::updateCreatureWalk, &g_game, getID())));
-			}
-			isUpdatingPath = false;
+//			int64_t walkDelay = getWalkDelay();
+//			if (walkDelay <= 0) {
+//				g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+//			} else if(!isUpdatePathScheduled) {
+//				isUpdatePathScheduled = true;
+//				g_scheduler.addEvent(createSchedulerTask(walkDelay, std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+//			}
+//			isUpdatingPath = false;
 
 		}
 
@@ -938,7 +939,6 @@ void Creature::goToFollowCreature()
 					listWalkDir.clear();
 					if (getPathTo(followCreature->getPosition(), listWalkDir, fpp)) {
 						hasFollowPath = true;
-						startAutoWalk();
 					} else {
 						hasFollowPath = false;
 					}
@@ -951,18 +951,25 @@ void Creature::goToFollowCreature()
 				listWalkDir.push_back(dir);
 
 				hasFollowPath = true;
-				startAutoWalk();
 			}
 		} else {
 			listWalkDir.clear();
 			if (getPathTo(followCreature->getPosition(), listWalkDir, fpp)) {
 				hasFollowPath = true;
-				startAutoWalk();
 			} else {
 				hasFollowPath = false;
 			}
 		}
 	}
+
+//	onFollowCreatureComplete(followCreature);
+}
+
+void Creature::goToFollowCreatureContinue()
+{
+	AutoStat gtfcc("Creature::goToFollowCreatureContinue");
+	if (hasFollowPath)
+		startAutoWalk(listWalkDir);
 
 	onFollowCreatureComplete(followCreature);
 }
