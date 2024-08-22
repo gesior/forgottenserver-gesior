@@ -18,35 +18,8 @@
 		<flag isboss="1" />
 	</flags>
 	<attacks>
-		<attack name="melee" interval="2000" min="0" max="-1990" />
-		<attack name="manadrain" interval="1000" chance="13" range="7" min="-300" max="-600" />
-		<attack name="manadrain" interval="1000" chance="6" radius="5" target="0" min="-150" max="-350">
-			<attribute key="areaEffect" value="poison" />
-		</attack>
-		<attack name="effect" interval="1000" chance="6" radius="5" target="0">
-			<attribute key="areaEffect" value="blackspark" />
-		</attack>
-		<attack name="fire" interval="1000" chance="34" range="7" radius="7" target="1" min="-310" max="-600">
-			<attribute key="shootEffect" value="fire" />
-			<attribute key="areaEffect" value="firearea" />
-		</attack>
-		<attack name="firefield" interval="1000" chance="10" range="7" radius="4" target="1">
-			<attribute key="shootEffect" value="fire" />
-		</attack>
-		<attack name="energy" interval="1000" chance="15" length="8" spread="0" min="-500" max="-850">
-			<attribute key="areaEffect" value="energy" />
-		</attack>
 	</attacks>
 	<defenses armor="90" defense="90">
-		<defense name="healing" interval="1000" chance="9" min="1500" max="2500">
-			<attribute key="areaEffect" value="blueshimmer" />
-		</defense>
-		<defense name="healing" interval="1000" chance="17" min="600" max="1000">
-			<attribute key="areaEffect" value="blueshimmer" />
-		</defense>
-		<defense name="speed" interval="1000" chance="5" speedchange="1140" duration="7000">
-			<attribute key="areaEffect" value="redshimmer" />
-		</defense>
 	</defenses>
 	<elements>
 		<element deathPercent="50" />
@@ -60,16 +33,6 @@
 		<immunity paralyze="1" />
 		<immunity invisible="1" />
 	</immunities>
-	<summons maxSummons="4">
-		<summon name="demon" interval="1000" chance="10" />
-	</summons>
-	<voices interval="5000" chance="10">
-		<voice sentence="PRAISED BE MY MASTERS, THE RUTHLESS SEVEN!" />
-		<voice sentence="YOU ARE DOOMED!" />
-		<voice sentence="ORSHABAAL IS BACK!" />
-		<voice sentence="Be prepared for the day my masters will come for you!" />
-		<voice sentence="SOULS FOR ORSHABAAL!" />
-	</voices>
 	<loot>
 		<item name="platinum coin" countmax="71" chance="100000" />
 		<item name="demonic essence" countmax="5" chance="95000" />

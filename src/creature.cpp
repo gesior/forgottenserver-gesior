@@ -8,6 +8,7 @@
 #include "monster.h"
 #include "configmanager.h"
 #include "scheduler.h"
+#include "stats.h"
 
 double Creature::speedA = 857.36;
 double Creature::speedB = 261.29;
@@ -600,7 +601,23 @@ void Creature::onCreatureMove(Creature* creature, const Tile* newTile, const Pos
 
 	if (creature == followCreature || (creature == this && followCreature)) {
 		if (hasFollowPath) {
-			isUpdatingPath = true;
+			// default
+//			isUpdatingPath = true;
+
+			// mark
+//			isUpdatingPath = false;
+//			g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+
+			// algo 4
+			int64_t walkDelay = getWalkDelay();
+			if (walkDelay <= 0) {
+				g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+			} else if(!isUpdatePathScheduled) {
+				isUpdatePathScheduled = true;
+				g_scheduler.addEvent(createSchedulerTask(walkDelay, std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+			}
+			isUpdatingPath = false;
+
 		}
 
 		if (newPos.z != oldPos.z || !canSee(followCreature->getPosition())) {
@@ -904,6 +921,7 @@ void Creature::getPathSearchParams(const Creature*, FindPathParams& fpp) const
 
 void Creature::goToFollowCreature()
 {
+	AutoStat gtfc("Creature::goToFollowCreature");
 	if (followCreature) {
 		FindPathParams fpp;
 		getPathSearchParams(followCreature, fpp);

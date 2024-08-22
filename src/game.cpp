@@ -3685,6 +3685,7 @@ void Game::updateCreatureWalk(uint32_t creatureId)
 {
 	Creature* creature = getCreatureByID(creatureId);
 	if (creature && creature->getHealth() > 0) {
+		creature->isUpdatePathScheduled = false;
 		creature->goToFollowCreature();
 	}
 }
