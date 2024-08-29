@@ -6,6 +6,7 @@ local walkRange = 7
 local monsterSpawnDistance = 6
 local playerName = 'Druid Sample'
 local monsterName = 'Troll'
+local wallItemId = 389
 
 local minX, maxX, minY, maxY = 1000, 5500, 1000, 4300
 for x = minX, maxX, teleportDistance do
@@ -70,14 +71,51 @@ function startLoop(steps)
 end
 
 function onSay(player, words, param)
-    local action = tonumber(param)
-
-    if action == 0 then
+    if param == 'run' then
         startLoop(2000)
-    elseif action == 1 then
+    elseif param == 'wall7' then
+        -- 7 sqm walls
+        for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2 do
+            for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2 do
+                if x % 3 == 0 and y % 7 ~= 0 then
+                    Game.createItem(wallItemId, 1, Position(x,y, 7))
+                end
+            end
+        end
+    elseif param == 'wall15' then
+        -- 15 sqm walls
+        for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2 do
+            for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2 do
+                if x % 3 == 0 and y % 15 ~= 0 then
+                    Game.createItem(wallItemId, 1, Position(x,y, 7))
+                end
+            end
+        end
+    elseif param == 'checker' then
+        -- checker pattern
+        for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2 do
+            for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2 do
+                if y % 3 ~= 0 and x % 2 ~= y % 2 then
+                    Game.createItem(wallItemId, 1, Position(x,y, 7))
+                end
+            end
+        end
+    elseif param == 'troll' then
         for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2, monsterSpawnDistance do
             for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2, monsterSpawnDistance do
-                Game.createMonster(monsterName, Position(x, y, 7), false, true)
+                Game.createMonster('Troll', Position(x, y, 7), false, true)
+            end
+        end
+    elseif param == 'demon' then
+        for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2, monsterSpawnDistance do
+            for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2, monsterSpawnDistance do
+                Game.createMonster('Demon', Position(x, y, 7), false, true)
+            end
+        end
+    elseif param == 'orsh' then
+        for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2, monsterSpawnDistance do
+            for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2, monsterSpawnDistance do
+                Game.createMonster('Orshabaal', Position(x, y, 7), false, true)
             end
         end
     end

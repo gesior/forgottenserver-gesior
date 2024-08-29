@@ -923,7 +923,6 @@ void Creature::getPathSearchParams(const Creature*, FindPathParams& fpp) const
 
 void Creature::goToFollowCreature()
 {
-	AutoStat gtfc("Creature::goToFollowCreature");
 	if (followCreature) {
 		FindPathParams fpp;
 		getPathSearchParams(followCreature, fpp);
