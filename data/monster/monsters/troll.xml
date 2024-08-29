@@ -20,7 +20,6 @@
 		<flag canwalkonpoison="0" />
 	</flags>
 	<attacks>
-		<attack name="melee" interval="2000" min="0" max="-15" />
 	</attacks>
 	<defenses armor="6" defense="6" />
 	<elements>
@@ -29,13 +28,6 @@
 		<element earthPercent="-10" />
 		<element deathPercent="-10" />
 	</elements>
-	<voices interval="5000" chance="10">
-		<voice sentence="Grrrr" />
-		<voice sentence="Groar" />
-		<voice sentence="Gruntz!" />
-		<voice sentence="Hmmm, bugs" />
-		<voice sentence="Hmmm, dogs" />
-	</voices>
 	<loot>
 		<item name="gold coin" countmax="12" chance="65300" />
 		<item name="hand axe" chance="20000" />

@@ -601,23 +601,25 @@ void Creature::onCreatureMove(Creature* creature, const Tile* newTile, const Pos
 
 	if (creature == followCreature || (creature == this && followCreature)) {
 		if (hasFollowPath) {
-			// default
-//			isUpdatingPath = true;
-
-			// mark
-//			isUpdatingPath = false;
-//			g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
-
-			// algo 4
-			int64_t walkDelay = getWalkDelay();
-			if (walkDelay <= 0) {
+			int algo = g_config.getNumber(ConfigManager::DEATH_LOSE_PERCENT);
+			if (algo == 1) {
+				// gesior
+				int64_t walkDelay = getWalkDelay();
+				if (walkDelay <= 0) {
+					g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+				} else if(!isUpdatePathScheduled) {
+					isUpdatePathScheduled = true;
+					g_scheduler.addEvent(createSchedulerTask(walkDelay, std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+				}
+				isUpdatingPath = false;
+			} else if(algo == 2) {
+				// mark
+				isUpdatingPath = false;
 				g_dispatcher.addTask(createTask(std::bind(&Game::updateCreatureWalk, &g_game, getID())));
-			} else if(!isUpdatePathScheduled) {
-				isUpdatePathScheduled = true;
-				g_scheduler.addEvent(createSchedulerTask(walkDelay, std::bind(&Game::updateCreatureWalk, &g_game, getID())));
+			} else {
+				// default
+				isUpdatingPath = true;
 			}
-			isUpdatingPath = false;
-
 		}
 
 		if (newPos.z != oldPos.z || !canSee(followCreature->getPosition())) {

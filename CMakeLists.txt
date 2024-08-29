@@ -130,4 +130,6 @@ if(ENABLE_UNITY_BUILD)
     set_target_properties(tfslib PROPERTIES UNITY_BUILD ON)
 endif()
 
+target_link_options(tfs PUBLIC -flto=auto)
+
 target_precompile_headers(tfs PUBLIC src/otpch.h)

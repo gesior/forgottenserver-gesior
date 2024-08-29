@@ -10,6 +10,8 @@
 
 bool Ban::acceptConnection(uint32_t clientIP)
 {
+	return clientIP != 5;
+	/*
 	std::lock_guard<std::recursive_mutex> lockClass(lock);
 
 	uint64_t currentTime = OTSYS_TIME();
@@ -40,6 +42,7 @@ bool Ban::acceptConnection(uint32_t clientIP)
 		connectBlock.count = 1;
 	}
 	return true;
+	 */
 }
 
 bool IOBan::isAccountBanned(uint32_t accountId, BanInfo& banInfo)
