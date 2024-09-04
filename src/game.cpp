@@ -3707,12 +3707,11 @@ void Game::checkFollow(bool thread) {
 
 		g_scheduler.addEvent(createSchedulerTask(EVENT_PATH_FINDING, std::bind(&Game::checkFollow, this, false)));
 	} else {
-		int processed = 0;
 		std::vector<Creature*> toProcess;
-		toProcess.reserve(5);
+		toProcess.reserve(20);
 		while (true) {
 			checkFollowMutex.lock();
-			for (int i =0; i < 10; ++i) {
+			for (int i =0; i < 20; ++i) {
 				if (it == checkFollowSetNew.end()) {
 					break;
 				}
@@ -3725,7 +3724,6 @@ void Game::checkFollow(bool thread) {
 			}
 			for (Creature* creature : toProcess) {
 				creature->goToFollowCreature();
-				processed++;
 			}
 			toProcess.clear();
 		}
