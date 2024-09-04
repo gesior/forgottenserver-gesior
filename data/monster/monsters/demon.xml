@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<monster name="Demon" nameDescription="a demon" race="fire" experience="6000" speed="256">
+<monster name="Demon" nameDescription="a demon" race="fire" experience="6000" speed="220">
 	<health now="8200" max="8200" />
 	<look type="35" corpse="5995" />
 	<targetchange interval="4000" chance="20" />
@@ -17,32 +17,8 @@
 		<flag runonhealth="0" />
 	</flags>
 	<attacks>
-		<attack name="melee" interval="2000" min="0" max="-500" />
-		<attack name="manadrain" interval="2000" chance="10" range="7" min="-30" max="-120" />
-		<attack name="fire" interval="2000" chance="20" range="7" radius="7" target="0" min="-150" max="-250">
-			<attribute key="shootEffect" value="fire" />
-			<attribute key="areaEffect" value="firearea" />
-		</attack>
-		<attack name="firefield" interval="2000" chance="10" range="7" radius="1" target="1">
-			<attribute key="shootEffect" value="fire" />
-		</attack>
-		<attack name="lifedrain" interval="2000" chance="10" length="8" spread="0" min="-300" max="-480">
-			<attribute key="areaEffect" value="purpleenergy" />
-		</attack>
-		<attack name="energy" interval="2000" chance="10" range="1" min="-210" max="-300">
-			<attribute key="shootEffect" value="energy" />
-		</attack>
-		<attack name="speed" interval="2000" chance="15" range="7" radius="1" target="1" speedchange="-700" duration="30000">
-			<attribute key="areaEffect" value="redshimmer" />
-		</attack>
 	</attacks>
 	<defenses armor="44" defense="44">
-		<defense name="healing" interval="2000" chance="15" min="80" max="250">
-			<attribute key="areaEffect" value="blueshimmer" />
-		</defense>
-		<defense name="speed" interval="2000" chance="15" speedchange="320" duration="5000">
-			<attribute key="areaEffect" value="redshimmer" />
-		</defense>
 	</defenses>
 	<elements>
 		<element physicalPercent="25" />
@@ -59,15 +35,7 @@
 		<immunity paralyze="1" />
 		<immunity invisible="1" />
 	</immunities>
-	<summons maxSummons="1">
-		<summon name="fire elemental" interval="2000" chance="10" />
-	</summons>
 	<voices interval="5000" chance="10">
-		<voice sentence="Your soul will be mine!" yell="1" />
-		<voice sentence="MUHAHAHAHA!" yell="1" />
-		<voice sentence="CHAMEK ATH UTHUL ARAK!" yell="1" />
-		<voice sentence="I SMELL FEEEEAAAAAR!" yell="1" />
-		<voice sentence="Your resistance is futile!" />
 	</voices>
 	<loot>
 		<item name="gold coin" countmax="100" chance="50000" />

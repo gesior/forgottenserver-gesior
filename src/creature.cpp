@@ -922,7 +922,6 @@ void Creature::getPathSearchParams(const Creature*, FindPathParams& fpp) const
 
 void Creature::goToFollowCreature()
 {
-	AutoStat gtfc("Creature::goToFollowCreature");
 	if (followCreature) {
 		FindPathParams fpp;
 		getPathSearchParams(followCreature, fpp);
@@ -967,7 +966,6 @@ void Creature::goToFollowCreature()
 
 void Creature::goToFollowCreatureContinue()
 {
-	AutoStat gtfcc("Creature::goToFollowCreatureContinue");
 	if (hasFollowPath)
 		startAutoWalk(listWalkDir);
 

@@ -29,7 +29,7 @@ void PathFinding::threadMain() {
 void PathFinding::runTask(std::function<void(void)> func) {
 	std::unique_lock<std::mutex> taskLockUnique(taskLock, std::defer_lock);
 	taskLockUnique.lock();
-	task = std::move(func);
+	task = func;
 	ready = 0;
 	taskSignal.notify_all();
 	taskSignal.wait(taskLockUnique);

@@ -3681,7 +3681,6 @@ void Game::checkFollow(bool thread) {
 	static std::set<Creature *> checkFollowSetNew;
 
 	if (!thread) {
-		AutoStat cfd1("Game::checkFollow dispatcher");
 		checkFollowSetNew = std::move(checkFollowSet);
 		checkFollowSet.clear();
 
@@ -3698,20 +3697,14 @@ void Game::checkFollow(bool thread) {
 			}
 		}
 
-		{
-			std::cout << "check count: " << checkFollowSetNew.size() << std::endl;
-			AutoStat cfd2("Game::checkFollow run tasks");
-			it = checkFollowSetNew.begin();
-			g_pathfinding.runTask(std::bind(&Game::checkFollow, this, true));
+		it = checkFollowSetNew.begin();
+		g_pathfinding.runTask(std::bind(&Game::checkFollow, this, true));
+
+		for (auto &creature: checkFollowSetNew) {
+			creature->goToFollowCreatureContinue();
+			ReleaseCreature(creature);
 		}
 
-		{
-			AutoStat cfd3("Game::checkFollow steps");
-			for (auto &creature: checkFollowSetNew) {
-				creature->goToFollowCreatureContinue();
-				ReleaseCreature(creature);
-			}
-		}
 		g_scheduler.addEvent(createSchedulerTask(EVENT_PATH_FINDING, std::bind(&Game::checkFollow, this, false)));
 	} else {
 		int processed = 0;
@@ -3737,7 +3730,6 @@ void Game::checkFollow(bool thread) {
 			}
 			toProcess.clear();
 		}
-		std::cout << "processed: " << processed << std::endl;
 	}
 }
 
