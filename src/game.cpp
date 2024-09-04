@@ -3712,7 +3712,7 @@ void Game::checkFollow(bool thread) {
 		toProcess.reserve(5);
 		while (true) {
 			checkFollowMutex.lock();
-			for (int i =0; i < 5; ++i) {
+			for (int i =0; i < 10; ++i) {
 				if (it == checkFollowSetNew.end()) {
 					break;
 				}
@@ -3724,7 +3724,6 @@ void Game::checkFollow(bool thread) {
 				break;
 			}
 			for (Creature* creature : toProcess) {
-				checkFollowMutex.unlock();
 				creature->goToFollowCreature();
 				processed++;
 			}
