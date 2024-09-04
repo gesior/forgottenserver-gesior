@@ -30,7 +30,7 @@ DatabaseTasks g_databaseTasks;
 Dispatcher g_dispatcher;
 Scheduler g_scheduler;
 Stats g_stats;
-PathFinding g_pathfinding(PATHFINDING_THREADS);
+PathFinding g_pathfinding(8);
 
 Game g_game;
 ConfigManager g_config;
