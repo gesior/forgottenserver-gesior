@@ -1,7 +1,7 @@
 local positions = {}
 
 local teleportInterval = 1000
-local teleportDistance = 1
+local teleportDistance = 5
 local walkRange = 0
 local monsterSpawnDistance = 6
 local playerName = 'Druid Sample'

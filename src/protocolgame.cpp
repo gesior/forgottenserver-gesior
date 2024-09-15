@@ -2197,6 +2197,7 @@ void ProtocolGame::sendCreatureTurn(const Creature* creature, uint32_t stackPos)
 
 void ProtocolGame::sendCreatureSay(const Creature* creature, SpeakClasses type, const std::string& text, const Position* pos/* = nullptr*/)
 {
+	AutoStat autoStat("sendCreatureSay");
 	NetworkMessage msg;
 	msg.addByte(0xAA);
 
@@ -2364,6 +2365,7 @@ void ProtocolGame::sendFYIBox(const std::string& message)
 //tile
 void ProtocolGame::sendMapDescription(const Position& pos)
 {
+	AutoStat autoStat("sendMapDescription");
 	NetworkMessage msg;
 	msg.addByte(0x64);
 	msg.addPosition(player->getPosition());
