@@ -73,7 +73,7 @@ set(BOOST_REQUIRED_COMPONENTS system iostreams locale)
 if (BUILD_TESTING)
     list(APPEND BOOST_REQUIRED_COMPONENTS unit_test_framework)
 endif ()
-find_package(Boost 1.66.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
+find_package(Boost 1.81.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 if (NOT DEFINED DISABLE_STATS OR NOT DISABLE_STATS)
     message(STATUS "OTS stats enabled. Run 'cmake -DDISABLE_STATS=1 ..' to disable")
