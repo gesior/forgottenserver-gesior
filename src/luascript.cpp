@@ -4238,7 +4238,7 @@ int LuaScriptInterface::luaGameGetSpectators(lua_State* L)
 	int32_t minRangeY = getNumber<int32_t>(L, 6, 0);
 	int32_t maxRangeY = getNumber<int32_t>(L, 7, 0);
 
-	SpectatorVec spectators;
+	Spectators spectators;
 	g_game.map.getSpectators(spectators, position, multifloor, onlyPlayers, minRangeX, maxRangeX, minRangeY, maxRangeY);
 
 	lua_createtable(L, spectators.size(), 0);
@@ -4853,11 +4853,11 @@ int LuaScriptInterface::luaPositionIsSightClear(lua_State* L)
 int LuaScriptInterface::luaPositionSendMagicEffect(lua_State* L)
 {
 	// position:sendMagicEffect(magicEffect[, player = nullptr])
-	SpectatorVec spectators;
+	Spectators spectators;
 	if (lua_gettop(L) >= 3) {
 		Player* player = getPlayer(L, 3);
 		if (player) {
-			spectators.emplace_back(player);
+			spectators.insert(player);
 		}
 	}
 
@@ -4876,11 +4876,11 @@ int LuaScriptInterface::luaPositionSendMagicEffect(lua_State* L)
 int LuaScriptInterface::luaPositionSendDistanceEffect(lua_State* L)
 {
 	// position:sendDistanceEffect(positionEx, distanceEffect[, player = nullptr])
-	SpectatorVec spectators;
+	Spectators spectators;
 	if (lua_gettop(L) >= 4) {
 		Player* player = getPlayer(L, 4);
 		if (player) {
-			spectators.emplace_back(player);
+			spectators.insert(player);
 		}
 	}
 
@@ -8015,18 +8015,18 @@ int LuaScriptInterface::luaCreatureSay(lua_State* L)
 		return 1;
 	}
 
-	SpectatorVec spectators;
+	Spectators spectators;
 	if (target) {
-		spectators.emplace_back(target);
+		spectators.insert(target);
 	}
 
 	// Prevent infinity echo on event onHear
 	bool echo = getScriptEnv()->getScriptId() == g_events->getScriptId(EventInfoId::CREATURE_ONHEAR);
 
 	if (position.x != 0) {
-		pushBoolean(L, g_game.internalCreatureSay(creature, type, text, ghost, &spectators, &position, echo));
+		pushBoolean(L, g_game.internalCreatureSay(creature, type, text, ghost, std::move(spectators), &position, echo));
 	} else {
-		pushBoolean(L, g_game.internalCreatureSay(creature, type, text, ghost, &spectators, nullptr, echo));
+		pushBoolean(L, g_game.internalCreatureSay(creature, type, text, ghost, std::move(spectators), nullptr, echo));
 	}
 	return 1;
 }
@@ -10118,7 +10118,7 @@ int LuaScriptInterface::luaPlayerSetGhostMode(lua_State* L)
 	const Position& position = player->getPosition();
 	const bool isInvisible = player->isInvisible();
 
-	SpectatorVec spectators;
+	Spectators spectators;
 	g_game.map.getSpectators(spectators, position, true, true);
 	for (Creature* spectator : spectators) {
 		Player* tmpPlayer = spectator->getPlayer();

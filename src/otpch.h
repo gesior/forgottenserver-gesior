@@ -14,6 +14,8 @@
 #include <boost/asio.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/lockfree/stack.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <boost/variant.hpp>
 #include <chrono>
 #include <cmath>

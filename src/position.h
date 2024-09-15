@@ -116,6 +116,7 @@ struct Position
 	int_fast16_t getZ() const { return z; }
 };
 
+std::size_t hash_value(const Position&);
 std::ostream& operator<<(std::ostream&, const Position&);
 std::ostream& operator<<(std::ostream&, const Direction&);
 
