@@ -385,6 +385,9 @@ void Map::getSpectatorsInternal(SpectatorVec& spectators, const Position& center
 
 void Map::getSpectators(SpectatorVec& spectators, const Position& centerPos, bool multifloor /*= false*/, bool onlyPlayers /*= false*/, int32_t minRangeX /*= 0*/, int32_t maxRangeX /*= 0*/, int32_t minRangeY /*= 0*/, int32_t maxRangeY /*= 0*/)
 {
+	{
+		AutoStat autoStatBaseTime("getSpectators base");
+	}
 	AutoStat autoStat("getSpectators");
 	if (centerPos.z >= MAP_MAX_LAYERS) {
 		return;
@@ -436,6 +439,12 @@ void Map::getSpectators(SpectatorVec& spectators, const Position& centerPos, boo
 				cacheResult = true;
 			}
 		}
+	}
+	if (foundCache) {
+		AutoStat autoStatFoundCache("foundCache");
+	}
+	if (cacheResult) {
+		AutoStat autoStatCacheResult("cacheResult");
 	}
 
 	if (!foundCache) {
