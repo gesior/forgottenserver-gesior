@@ -18,28 +18,11 @@
 		<flag canwalkonenergy="0" />
 	</flags>
 	<attacks>
-		<attack name="melee" interval="2000" min="0" max="-240" poison="160" />
-		<attack name="fire" interval="2000" chance="20" range="7" radius="4" target="1" min="-100" max="-240">
+		<attack name="fire" interval="500" chance="100" range="7" radius="4" target="1" min="-1" max="-2">
 			<attribute key="shootEffect" value="fire" />
 			<attribute key="areaEffect" value="firearea" />
 		</attack>
-		<attack name="fire" interval="2000" chance="10" range="7" radius="2" target="1" min="-300" max="-430">
-			<attribute key="shootEffect" value="fire" />
-			<attribute key="areaEffect" value="fireattack" />
-		</attack>
-		<attack name="diabolic imp skill reducer" range="5" interval="2000" chance="5" />
 	</attacks>
-	<defenses armor="25" defense="25">
-		<defense name="healing" interval="2000" chance="10" min="650" max="800">
-			<attribute key="areaEffect" value="blueshimmer" />
-		</defense>
-		<defense name="speed" interval="2000" chance="15" speedchange="800" duration="2000">
-			<attribute key="areaEffect" value="redshimmer" />
-		</defense>
-		<defense name="invisible" interval="2000" chance="10" duration="1000">
-			<attribute key="areaEffect" value="teleport" />
-		</defense>
-	</defenses>
 	<elements>
 		<element deathPercent="10" />
 		<element earthPercent="50" />

@@ -1,11 +1,10 @@
 local positions = {}
 
-local teleportInterval = 10000
-local teleportDistance = 30
-local walkRange = 7
+local teleportInterval = 1000
+local teleportDistance = 1
+local walkRange = 0
 local monsterSpawnDistance = 6
 local playerName = 'Druid Sample'
-local monsterName = 'Troll'
 local wallItemId = 389
 
 local minX, maxX, minY, maxY = 1000, 5500, 1000, 4300
@@ -116,6 +115,12 @@ function onSay(player, words, param)
         for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2, monsterSpawnDistance do
             for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2, monsterSpawnDistance do
                 Game.createMonster('Orshabaal', Position(x, y, 7), false, true)
+            end
+        end
+    elseif param == 'imp' then
+        for x = minX - monsterSpawnDistance * 2, maxX + monsterSpawnDistance * 2, monsterSpawnDistance do
+            for y = minY - monsterSpawnDistance * 2, maxY + monsterSpawnDistance * 2, monsterSpawnDistance do
+                Game.createMonster('Diabolic Imp', Position(x, y, 7), false, true)
             end
         end
     end
