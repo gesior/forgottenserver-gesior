@@ -2367,11 +2367,12 @@ void ProtocolGame::sendFYIBox(const std::string& message)
 //tile
 void ProtocolGame::sendMapDescription(const Position& pos)
 {
-	NetworkMessage msg;
-	msg.addByte(0x64);
-	msg.addPosition(player->getPosition());
-	GetMapDescription(pos.x - Map::maxClientViewportX, pos.y - Map::maxClientViewportY, pos.z, (Map::maxClientViewportX * 2) + 2, (Map::maxClientViewportY * 2) + 2, msg);
-	writeToOutputBuffer(msg);
+	AutoStat autoStat("sendMapDescription");
+	testMsg.reset();
+	testMsg.addByte(0x64);
+	testMsg.addPosition(player->getPosition());
+	GetMapDescription(pos.x - Map::maxClientViewportX, pos.y - Map::maxClientViewportY, pos.z, (Map::maxClientViewportX * 2) + 2, (Map::maxClientViewportY * 2) + 2, testMsg);
+	writeToOutputBuffer(testMsg);
 }
 
 void ProtocolGame::sendAddTileItem(const Position& pos, uint32_t stackpos, const Item* item)
