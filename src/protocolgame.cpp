@@ -2305,23 +2305,25 @@ void ProtocolGame::sendPing()
 	writeToOutputBuffer(msg);
 }
 
+NetworkMessage testMsg;
+
 void ProtocolGame::sendPingBack()
 {
 	AutoStat autoStat("sendPingBack");
-	NetworkMessage msg;
-	msg.addByte(0x1E);
-	writeToOutputBuffer(msg);
+	testMsg.reset();
+	testMsg.addByte(0x1E);
+	writeToOutputBuffer(testMsg);
 }
 
 void ProtocolGame::sendDistanceShoot(const Position& from, const Position& to, uint8_t type)
 {
 	AutoStat autoStat("sendDistanceShoot");
-	NetworkMessage msg;
-	msg.addByte(0x85);
-	msg.addPosition(from);
-	msg.addPosition(to);
-	msg.addByte(type);
-	writeToOutputBuffer(msg);
+	testMsg.reset();
+	testMsg.addByte(0x85);
+	testMsg.addPosition(from);
+	testMsg.addPosition(to);
+	testMsg.addByte(type);
+	writeToOutputBuffer(testMsg);
 }
 
 void ProtocolGame::sendMagicEffect(const Position& pos, uint8_t type)
@@ -2331,26 +2333,26 @@ void ProtocolGame::sendMagicEffect(const Position& pos, uint8_t type)
 	}
 
 	AutoStat autoStat("sendMagicEffect");
-	NetworkMessage msg;
-	msg.addByte(0x83);
-	msg.addPosition(pos);
-	msg.addByte(type);
-	writeToOutputBuffer(msg);
+	testMsg.reset();
+	testMsg.addByte(0x83);
+	testMsg.addPosition(pos);
+	testMsg.addByte(type);
+	writeToOutputBuffer(testMsg);
 }
 
 void ProtocolGame::sendCreatureHealth(const Creature* creature)
 {
 	AutoStat autoStat("sendCreatureHealth");
-	NetworkMessage msg;
-	msg.addByte(0x8C);
-	msg.add<uint32_t>(creature->getID());
+	testMsg.reset();
+	testMsg.addByte(0x8C);
+	testMsg.add<uint32_t>(creature->getID());
 
 	if (creature->isHealthHidden()) {
-		msg.addByte(0x00);
+		testMsg.addByte(0x00);
 	} else {
-		msg.addByte(std::ceil((static_cast<double>(creature->getHealth()) / std::max<int32_t>(creature->getMaxHealth(), 1)) * 100));
+		testMsg.addByte(std::ceil((static_cast<double>(creature->getHealth()) / std::max<int32_t>(creature->getMaxHealth(), 1)) * 100));
 	}
-	writeToOutputBuffer(msg);
+	writeToOutputBuffer(testMsg);
 }
 
 void ProtocolGame::sendFYIBox(const std::string& message)
