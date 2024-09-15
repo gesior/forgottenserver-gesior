@@ -2195,32 +2195,35 @@ void ProtocolGame::sendCreatureTurn(const Creature* creature, uint32_t stackPos)
 	writeToOutputBuffer(msg);
 }
 
+NetworkMessage testMsg;
+
 void ProtocolGame::sendCreatureSay(const Creature* creature, SpeakClasses type, const std::string& text, const Position* pos/* = nullptr*/)
 {
-	NetworkMessage msg;
-	msg.addByte(0xAA);
+	AutoStat autoStat("sendCreatureSay");
+	testMsg.reset();
+	testMsg.addByte(0xAA);
 
 	static uint32_t statementId = 0;
-	msg.add<uint32_t>(++statementId);
+	testMsg.add<uint32_t>(++statementId);
 
-	msg.addString(creature->getName());
+	testMsg.addString(creature->getName());
 
 	//Add level only for players
 	if (const Player* speaker = creature->getPlayer()) {
-		msg.add<uint16_t>(speaker->getLevel());
+		testMsg.add<uint16_t>(speaker->getLevel());
 	} else {
-		msg.add<uint16_t>(0x00);
+		testMsg.add<uint16_t>(0x00);
 	}
 
-	msg.addByte(type);
+	testMsg.addByte(type);
 	if (pos) {
-		msg.addPosition(*pos);
+		testMsg.addPosition(*pos);
 	} else {
-		msg.addPosition(creature->getPosition());
+		testMsg.addPosition(creature->getPosition());
 	}
 
-	msg.addString(text);
-	writeToOutputBuffer(msg);
+	testMsg.addString(text);
+	writeToOutputBuffer(testMsg);
 }
 
 void ProtocolGame::sendToChannel(const Creature* creature, SpeakClasses type, const std::string& text, uint16_t channelId)
@@ -2304,8 +2307,6 @@ void ProtocolGame::sendPing()
 	msg.addByte(0x1D);
 	writeToOutputBuffer(msg);
 }
-
-NetworkMessage testMsg;
 
 void ProtocolGame::sendPingBack()
 {
