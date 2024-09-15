@@ -18,6 +18,7 @@
 #include "iomarket.h"
 #include "ban.h"
 #include "scheduler.h"
+#include "stats.h"
 
 extern ConfigManager g_config;
 extern Actions actions;
@@ -2306,6 +2307,7 @@ void ProtocolGame::sendPing()
 
 void ProtocolGame::sendPingBack()
 {
+	AutoStat autoStat("sendPingBack");
 	NetworkMessage msg;
 	msg.addByte(0x1E);
 	writeToOutputBuffer(msg);
@@ -2313,6 +2315,7 @@ void ProtocolGame::sendPingBack()
 
 void ProtocolGame::sendDistanceShoot(const Position& from, const Position& to, uint8_t type)
 {
+	AutoStat autoStat("sendDistanceShoot");
 	NetworkMessage msg;
 	msg.addByte(0x85);
 	msg.addPosition(from);
@@ -2327,6 +2330,7 @@ void ProtocolGame::sendMagicEffect(const Position& pos, uint8_t type)
 		return;
 	}
 
+	AutoStat autoStat("sendMagicEffect");
 	NetworkMessage msg;
 	msg.addByte(0x83);
 	msg.addPosition(pos);
@@ -2336,6 +2340,7 @@ void ProtocolGame::sendMagicEffect(const Position& pos, uint8_t type)
 
 void ProtocolGame::sendCreatureHealth(const Creature* creature)
 {
+	AutoStat autoStat("sendCreatureHealth");
 	NetworkMessage msg;
 	msg.addByte(0x8C);
 	msg.add<uint32_t>(creature->getID());
