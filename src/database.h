@@ -1,24 +1,30 @@
-// Copyright 2022 The Forgotten Server Authors. All rights reserved.
+// Copyright 2023 The Forgotten Server Authors. All rights reserved.
 // Use of this source code is governed by the GPL-2.0 License that can be found in the LICENSE file.
 
-#ifndef FS_DATABASE_H_A484B0CDFDE542838F506DCE3D40C693
-#define FS_DATABASE_H_A484B0CDFDE542838F506DCE3D40C693
+#ifndef FS_DATABASE_H
+#define FS_DATABASE_H
 
 #include "pugicast.h"
 
 class DBResult;
 using DBResult_ptr = std::shared_ptr<DBResult>;
 
+namespace tfs::detail {
+
+struct MysqlDeleter
+{
+	void operator()(MYSQL* handle) const { mysql_close(handle); }
+	void operator()(MYSQL_RES* handle) const { mysql_free_result(handle); }
+};
+
+using Mysql_ptr = std::unique_ptr<MYSQL, MysqlDeleter>;
+using MysqlResult_ptr = std::unique_ptr<MYSQL_RES, MysqlDeleter>;
+
+} // namespace tfs::detail
+
 class Database
 {
 	public:
-		Database() = default;
-		~Database();
-
-		// non-copyable
-		Database(const Database&) = delete;
-		Database& operator=(const Database&) = delete;
-
 		/**
 		 * Singleton implementation.
 		 *
@@ -54,7 +60,7 @@ class Database
 		 *
 		 * @return results object (nullptr on error)
 		 */
-		DBResult_ptr storeQuery(const std::string& query);
+		DBResult_ptr storeQuery(std::string_view query);
 
 		/**
 		 * Escapes string for query.
@@ -64,7 +70,7 @@ class Database
 		 * @param s string to be escaped
 		 * @return quoted string
 		 */
-		std::string escapeString(const std::string& s) const;
+		[[nodiscard]] std::string escapeString(std::string_view s) const { return escapeBlob(s.data(), s.length()); }
 
 		/**
 		 * Escapes binary stream for query.
@@ -82,22 +88,16 @@ class Database
 		 *
 		 * @return id on success, 0 if last query did not result on any rows with auto_increment keys
 		 */
-		uint64_t getLastInsertId() const {
-			return static_cast<uint64_t>(mysql_insert_id(handle));
-		}
+		[[nodiscard]] uint64_t getLastInsertId() const { return static_cast<uint64_t>(mysql_insert_id(handle.get())); }
 
 		/**
 		 * Get database engine version
 		 *
 		 * @return the database engine version
 		 */
-		static const char* getClientVersion() {
-			return mysql_get_client_info();
-		}
+		static const char* getClientVersion() { return mysql_get_client_info(); }
 
-		uint64_t getMaxPacketSize() const {
-			return maxPacketSize;
-		}
+		[[nodiscard]] uint64_t getMaxPacketSize() const { return maxPacketSize; }
 
 	private:
 		/**
@@ -111,9 +111,11 @@ class Database
 		bool rollback();
 		bool commit();
 
-		MYSQL* handle = nullptr;
+		tfs::detail::Mysql_ptr handle = nullptr;
 		std::recursive_mutex databaseLock;
 		uint64_t maxPacketSize = 1048576;
+		// Do not retry queries if we are in the middle of a transaction
+		bool retryQueries = true;
 
 	friend class DBTransaction;
 };
@@ -121,14 +123,13 @@ class Database
 class DBResult
 {
 	public:
-		explicit DBResult(MYSQL_RES* res);
-		~DBResult();
+		explicit DBResult(tfs::detail::MysqlResult_ptr&& res);
 
 		// non-copyable
 		DBResult(const DBResult&) = delete;
 		DBResult& operator=(const DBResult&) = delete;
 
-		template<typename T>
+		template <typename T>
 		T getNumber(std::string_view column) const
 		{
 			auto it = listNames.find(column);
@@ -145,19 +146,19 @@ class DBResult
 			return pugi::cast<T>(row[it->second]);
 		}
 
-		std::string getString(const std::string& s) const;
+		[[nodiscard]] std::string getString(std::string_view column) const;
 		const char* getStream(const std::string& s, unsigned long& size) const;
 
-		bool hasNext() const;
+		[[nodiscard]] bool hasNext() const;
 		bool next();
 
 	private:
-		MYSQL_RES* handle;
+		tfs::detail::MysqlResult_ptr handle;
 		MYSQL_ROW row;
 
 		std::map<std::string_view, size_t> listNames;
 
-	friend class Database;
+		friend class Database;
 };
 
 /**
@@ -182,7 +183,8 @@ class DBTransaction
 	public:
 		constexpr DBTransaction() = default;
 
-		~DBTransaction() {
+		~DBTransaction()
+		{
 			if (state == STATE_START) {
 				Database::getInstance().rollback();
 			}
@@ -192,12 +194,14 @@ class DBTransaction
 		DBTransaction(const DBTransaction&) = delete;
 		DBTransaction& operator=(const DBTransaction&) = delete;
 
-		bool begin() {
+		bool begin()
+		{
 			state = STATE_START;
 			return Database::getInstance().beginTransaction();
 		}
 
-		bool commit() {
+		bool commit()
+		{
 			if (state != STATE_START) {
 				return false;
 			}
@@ -207,7 +211,8 @@ class DBTransaction
 		}
 
 	private:
-		enum TransactionStates_t {
+		enum TransactionStates_t
+		{
 			STATE_NO_START,
 			STATE_START,
 			STATE_COMMIT,
@@ -216,4 +221,4 @@ class DBTransaction
 		TransactionStates_t state = STATE_NO_START;
 };
 
-#endif
+#endif // FS_DATABASE_H
