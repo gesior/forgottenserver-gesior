@@ -18,10 +18,12 @@
 [Dd]ebug/
 [Rr]elease/
 x64/
+Win32/
 build/
 [Bb]in/
 [Oo]bj/
 cmake-build-*/
+vcpkg_installed/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
