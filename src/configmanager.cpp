@@ -223,6 +223,8 @@ bool ConfigManager::load()
 	boolean[ONLY_INVITED_CAN_MOVE_HOUSE_ITEMS] = getGlobalBoolean(L, "onlyInvitedCanMoveHouseItems", true);
 	boolean[REMOVE_ON_DESPAWN] = getGlobalBoolean(L, "removeOnDespawn", true);
 	boolean[PLAYER_CONSOLE_LOGS] = getGlobalBoolean(L, "showPlayerLogInConsole", true);
+	boolean[STATS_TRACK_LUA_ADD_EVENTS] = getGlobalBoolean(L, "statsTrackLuaAddEvents", false);
+	boolean[STATS_TRACK_LUA_ADD_EVENTS_HASHES] = getGlobalBoolean(L, "statsTrackLuaAddEventsHashes", false);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");
