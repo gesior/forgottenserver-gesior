@@ -197,7 +197,6 @@ class LuaScriptInterface
 		int32_t loadFile(const std::string& file, Npc* npc = nullptr);
 
 		const std::string& getFileById(int32_t scriptId);
-		const std::string& getFileByIdForStats(int32_t scriptId);
 #ifdef STATS_ENABLED
 		const std::string& getAddEventStackTracebackHash(const std::string& addEventStackBacktrace);
 #endif

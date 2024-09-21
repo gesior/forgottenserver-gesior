@@ -279,12 +279,29 @@ bool LuaScriptInterface::reInitState()
 /// Same as lua_pcall, but adds stack trace to error strings in called function.
 int LuaScriptInterface::protectedCall(lua_State* L, int nargs, int nresults)
 {
+#ifdef STATS_ENABLED
+	int32_t scriptId;
+	int32_t callbackId;
+	bool timerEvent;
+	LuaScriptInterface* scriptInterface;
+	getScriptEnv()->getEventInfo(scriptId, scriptInterface, callbackId, timerEvent);
+	std::chrono::high_resolution_clock::time_point time_point = std::chrono::high_resolution_clock::now();
+#endif
+
 	int error_index = lua_gettop(L) - nargs;
 	lua_pushcfunction(L, luaErrorHandler);
 	lua_insert(L, error_index);
 
 	int ret = lua_pcall(L, nargs, nresults, error_index);
 	lua_remove(L, error_index);
+
+#ifdef STATS_ENABLED
+	uint64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - time_point).count();
+	if (scriptInterface) {
+		g_stats.addLuaStats(new Stat(ns, scriptInterface->getFileById(scriptId), ""));
+	}
+#endif
+
 	return ret;
 }
 
@@ -415,16 +432,6 @@ const std::string& LuaScriptInterface::getFileById(int32_t scriptId)
 		return loadingFile;
 	}
 
-	auto it = cacheFiles.find(scriptId);
-	if (it == cacheFiles.end()) {
-		static const std::string& unk = "(Unknown scriptfile)";
-		return unk;
-	}
-	return it->second;
-}
-
-const std::string& LuaScriptInterface::getFileByIdForStats(int32_t scriptId)
-{
 	auto it = cacheFiles.find(scriptId);
 	if (it == cacheFiles.end()) {
 		static const std::string& unk = "(Unknown scriptfile)";
@@ -571,15 +578,6 @@ int LuaScriptInterface::luaErrorHandler(lua_State* L)
 
 bool LuaScriptInterface::callFunction(int params)
 {
-#ifdef STATS_ENABLED
-	int32_t scriptId;
-	int32_t callbackId;
-	bool timerEvent;
-	LuaScriptInterface* scriptInterface;
-	getScriptEnv()->getEventInfo(scriptId, scriptInterface, callbackId, timerEvent);
-	std::chrono::high_resolution_clock::time_point time_point = std::chrono::high_resolution_clock::now();
-#endif
-
 	bool result = false;
 	int size = lua_gettop(luaState);
 	if (protectedCall(luaState, params, 1) != 0) {
@@ -592,11 +590,6 @@ bool LuaScriptInterface::callFunction(int params)
 	if ((lua_gettop(luaState) + params + 1) != size) {
 		LuaScriptInterface::reportError(nullptr, "Stack size changed!");
 	}
-
-#ifdef STATS_ENABLED
-	uint64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - time_point).count();
-	g_stats.addLuaStats(new Stat(ns, getFileByIdForStats(scriptId), ""));
-#endif
 
 	resetScriptEnv();
 	return result;
