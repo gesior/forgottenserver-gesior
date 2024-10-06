@@ -86,7 +86,21 @@ std::string transformToSHA1(std::string_view input)
 		throw std::runtime_error("Message digest finalization failed");
 	}
 
-	return digest;
+	if (digest.length() != 20) {
+		throw std::runtime_error("Generated SHA1 digest length is not 20");
+	}
+
+	char hexString[41] = {0};
+	static const char hexDigits[] = {"0123456789abcdef"};
+	int index;
+	for (int hashByte = 0; hashByte < 20; hashByte++) {
+		const uint8_t byte = digest[hashByte];
+		index = hashByte << 1;
+		hexString[index] = hexDigits[byte >> 4];
+		hexString[index + 1] = hexDigits[byte & 15];
+	}
+
+	return std::string(hexString, 40);
 }
 
 std::string generateToken(const std::string& key, uint32_t ticks)
