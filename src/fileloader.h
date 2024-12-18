@@ -100,6 +100,10 @@ class PropStream
 			return true;
 		}
 
+		const char* current() {
+			return p;
+		}
+
 	private:
 		const char* p = nullptr;
 		const char* end = nullptr;
@@ -127,6 +131,10 @@ class PropWriteStream
 		void write(T add) {
 			char* addr = reinterpret_cast<char*>(&add);
 			std::copy(addr, addr + sizeof(T), std::back_inserter(buffer));
+		}
+
+		void writeBytes(const char* addr, size_t length) {
+			std::copy(addr, addr + length, std::back_inserter(buffer));
 		}
 
 		void writeString(const std::string& str) {

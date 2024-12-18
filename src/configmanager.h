@@ -51,6 +51,7 @@ class ConfigManager
 			PLAYER_CONSOLE_LOGS,
 			STATS_TRACK_LUA_ADD_EVENTS,
 			STATS_TRACK_LUA_ADD_EVENTS_HASHES,
+			BINARY_PLAYER_ITEMS,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};

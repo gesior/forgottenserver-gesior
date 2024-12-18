@@ -166,6 +166,9 @@ ownerEmail = ""
 url = "https://otland.net/"
 location = "Sweden"
 
+-- Save player items in binary format
+binaryPlayerItems = false
+
 -- Server Statistics
 -- time in seconds: 30 = 30 seconds, 0 = disabled
 statsDumpInterval = 30
