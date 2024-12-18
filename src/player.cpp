@@ -3114,6 +3114,10 @@ void Player::postRemoveNotification(Thing* thing, const Cylinder* newParent, int
 		if (shopOwner && requireListUpdate) {
 			updateSaleShopList(item);
 		}
+
+		if (bedItem == item) {
+			bedItem = nullptr;
+		}
 	}
 }
 
