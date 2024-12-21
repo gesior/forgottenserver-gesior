@@ -1978,6 +1978,24 @@ uint32_t Player::getIP() const
 	return 0;
 }
 
+bool Player::isOtcProxy() const
+{
+	if (client) {
+		return client->isOtcProxy();
+	}
+
+	return {};
+}
+
+bool Player::isHaProxy() const
+{
+	if (client) {
+		return client->isHaProxy();
+	}
+
+	return {};
+}
+
 void Player::death(Creature* lastHitCreature)
 {
 	loginPosition = town->getTemplePosition();

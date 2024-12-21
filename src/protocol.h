@@ -33,6 +33,8 @@ class Protocol : public std::enable_shared_from_this<Protocol>
 		}
 
 		uint32_t getIP() const;
+		bool isOtcProxy() const;
+		bool isHaProxy() const;
 
 		//Use this function for autosend messages only
 		OutputMessage_ptr getOutputBuffer(int32_t size);

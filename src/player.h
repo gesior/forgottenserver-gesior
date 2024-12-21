@@ -318,6 +318,8 @@ class Player final : public Creature, public Cylinder
 			}
 		}
 		uint32_t getIP() const;
+		bool isOtcProxy() const;
+		bool isHaProxy() const;
 
 		void addContainer(uint8_t cid, Container* container);
 		void closeContainer(uint8_t cid);
