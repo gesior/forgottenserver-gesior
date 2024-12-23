@@ -1125,7 +1125,8 @@ void IOLoginData::loadItemsBinary(ItemMap& itemMap, DBResult_ptr result)
 	uint8_t itemsFormatVersion = 0;
 	itemsStream.read<uint8_t>(itemsFormatVersion);
 	if (itemsFormatVersion != PLAYERS_BINARY_ITEMS_FORMAT_VERSION) {
-		std::cout << "WARNING: Failed to load items in IOLoginData::loadItemsBinary, invalid version: " << (int) itemsFormatVersion << std::endl;
+		std::cout << "WARNING: Failed to load items in IOLoginData::loadItemsBinary, invalid version: " <<
+				  static_cast<int32_t>(itemsFormatVersion) << std::endl;
 		return;
 	}
 
