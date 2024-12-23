@@ -1032,116 +1032,8 @@ void LuaScriptInterface::pushLoot(lua_State* L, const std::vector<LootBlock>& lo
 #define registerEnum(value) { std::string enumName = #value; registerGlobalVariable(enumName.substr(enumName.find_last_of(':') + 1), value); }
 #define registerEnumIn(tableName, value) { std::string enumName = #value; registerVariable(tableName, enumName.substr(enumName.find_last_of(':') + 1), value); }
 
-void LuaScriptInterface::registerFunctions()
+void LuaScriptInterface::registerEnums()
 {
-	//doPlayerAddItem(uid, itemid, <optional: default: 1> count/subtype)
-	//doPlayerAddItem(cid, itemid, <optional: default: 1> count, <optional: default: 1> canDropOnMap, <optional: default: 1>subtype)
-	//Returns uid of the created item
-	lua_register(luaState, "doPlayerAddItem", LuaScriptInterface::luaDoPlayerAddItem);
-
-	//isValidUID(uid)
-	lua_register(luaState, "isValidUID", LuaScriptInterface::luaIsValidUID);
-
-	//isDepot(uid)
-	lua_register(luaState, "isDepot", LuaScriptInterface::luaIsDepot);
-
-	//isMovable(uid)
-	lua_register(luaState, "isMovable", LuaScriptInterface::luaIsMoveable);
-
-	//doAddContainerItem(uid, itemid, <optional> count/subtype)
-	lua_register(luaState, "doAddContainerItem", LuaScriptInterface::luaDoAddContainerItem);
-
-	//getDepotId(uid)
-	lua_register(luaState, "getDepotId", LuaScriptInterface::luaGetDepotId);
-
-	//getWorldTime()
-	lua_register(luaState, "getWorldTime", LuaScriptInterface::luaGetWorldTime);
-
-	//getWorldLight()
-	lua_register(luaState, "getWorldLight", LuaScriptInterface::luaGetWorldLight);
-
-	//setWorldLight(level, color)
-	lua_register(luaState, "setWorldLight", LuaScriptInterface::luaSetWorldLight);
-
-	//getWorldUpTime()
-	lua_register(luaState, "getWorldUpTime", LuaScriptInterface::luaGetWorldUpTime);
-
-	// getSubTypeName(subType)
-	lua_register(luaState, "getSubTypeName", LuaScriptInterface::luaGetSubTypeName);
-
-	//createCombatArea( {area}, <optional> {extArea} )
-	lua_register(luaState, "createCombatArea", LuaScriptInterface::luaCreateCombatArea);
-
-	//doAreaCombat(cid, type, pos, area, min, max, effect[, origin = ORIGIN_SPELL[, blockArmor = false[, blockShield = false[, ignoreResistances = false]]]])
-	lua_register(luaState, "doAreaCombat", LuaScriptInterface::luaDoAreaCombat);
-
-	//doTargetCombat(cid, target, type, min, max, effect[, origin = ORIGIN_SPELL[, blockArmor = false[, blockShield = false[, ignoreResistances = false]]]])
-	lua_register(luaState, "doTargetCombat", LuaScriptInterface::luaDoTargetCombat);
-
-	//doChallengeCreature(cid, target[, force = false])
-	lua_register(luaState, "doChallengeCreature", LuaScriptInterface::luaDoChallengeCreature);
-
-	//addEvent(callback, delay, ...)
-	lua_register(luaState, "addEvent", LuaScriptInterface::luaAddEvent);
-
-	//stopEvent(eventid)
-	lua_register(luaState, "stopEvent", LuaScriptInterface::luaStopEvent);
-
-	//saveServer()
-	lua_register(luaState, "saveServer", LuaScriptInterface::luaSaveServer);
-
-	//cleanMap()
-	lua_register(luaState, "cleanMap", LuaScriptInterface::luaCleanMap);
-
-	//debugPrint(text)
-	lua_register(luaState, "debugPrint", LuaScriptInterface::luaDebugPrint);
-
-	//isInWar(cid, target)
-	lua_register(luaState, "isInWar", LuaScriptInterface::luaIsInWar);
-
-	//getWaypointPosition(name)
-	lua_register(luaState, "getWaypointPositionByName", LuaScriptInterface::luaGetWaypointPositionByName);
-
-	//sendChannelMessage(channelId, type, message)
-	lua_register(luaState, "sendChannelMessage", LuaScriptInterface::luaSendChannelMessage);
-
-	//sendGuildChannelMessage(guildId, type, message)
-	lua_register(luaState, "sendGuildChannelMessage", LuaScriptInterface::luaSendGuildChannelMessage);
-
-	//isScriptsInterface()
-	lua_register(luaState, "isScriptsInterface", LuaScriptInterface::luaIsScriptsInterface);
-
-#ifndef LUAJIT_VERSION
-	//bit operations for Lua, based on bitlib project release 24
-	//bit.bnot, bit.band, bit.bor, bit.bxor, bit.lshift, bit.rshift
-	luaL_register(luaState, "bit", LuaScriptInterface::luaBitReg);
-	lua_pop(luaState, 1);
-#endif
-
-	//configManager table
-	luaL_register(luaState, "configManager", LuaScriptInterface::luaConfigManagerTable);
-	lua_pop(luaState, 1);
-
-	//db table
-	luaL_register(luaState, "db", LuaScriptInterface::luaDatabaseTable);
-	lua_pop(luaState, 1);
-
-	//result table
-	luaL_register(luaState, "result", LuaScriptInterface::luaResultTable);
-	lua_pop(luaState, 1);
-
-	/* New functions */
-	//registerClass(className, baseClass, newFunction)
-	//registerTable(tableName)
-	//registerMethod(className, functionName, function)
-	//registerMetaMethod(className, functionName, function)
-	//registerGlobalMethod(functionName, function)
-	//registerVariable(tableName, name, value)
-	//registerGlobalVariable(name, value)
-	//registerEnum(value)
-	//registerEnumIn(tableName, value)
-
-	// Enums
 	registerEnum(ACCOUNT_TYPE_NORMAL)
 	registerEnum(ACCOUNT_TYPE_TUTOR)
 	registerEnum(ACCOUNT_TYPE_SENIORTUTOR)
@@ -1958,6 +1850,119 @@ void LuaScriptInterface::registerFunctions()
 	registerEnum(MONSTERS_EVENT_DISAPPEAR)
 	registerEnum(MONSTERS_EVENT_MOVE)
 	registerEnum(MONSTERS_EVENT_SAY)
+}
+
+void LuaScriptInterface::registerFunctions()
+{
+	//doPlayerAddItem(uid, itemid, <optional: default: 1> count/subtype)
+	//doPlayerAddItem(cid, itemid, <optional: default: 1> count, <optional: default: 1> canDropOnMap, <optional: default: 1>subtype)
+	//Returns uid of the created item
+	lua_register(luaState, "doPlayerAddItem", LuaScriptInterface::luaDoPlayerAddItem);
+
+	//isValidUID(uid)
+	lua_register(luaState, "isValidUID", LuaScriptInterface::luaIsValidUID);
+
+	//isDepot(uid)
+	lua_register(luaState, "isDepot", LuaScriptInterface::luaIsDepot);
+
+	//isMovable(uid)
+	lua_register(luaState, "isMovable", LuaScriptInterface::luaIsMoveable);
+
+	//doAddContainerItem(uid, itemid, <optional> count/subtype)
+	lua_register(luaState, "doAddContainerItem", LuaScriptInterface::luaDoAddContainerItem);
+
+	//getDepotId(uid)
+	lua_register(luaState, "getDepotId", LuaScriptInterface::luaGetDepotId);
+
+	//getWorldTime()
+	lua_register(luaState, "getWorldTime", LuaScriptInterface::luaGetWorldTime);
+
+	//getWorldLight()
+	lua_register(luaState, "getWorldLight", LuaScriptInterface::luaGetWorldLight);
+
+	//setWorldLight(level, color)
+	lua_register(luaState, "setWorldLight", LuaScriptInterface::luaSetWorldLight);
+
+	//getWorldUpTime()
+	lua_register(luaState, "getWorldUpTime", LuaScriptInterface::luaGetWorldUpTime);
+
+	// getSubTypeName(subType)
+	lua_register(luaState, "getSubTypeName", LuaScriptInterface::luaGetSubTypeName);
+
+	//createCombatArea( {area}, <optional> {extArea} )
+	lua_register(luaState, "createCombatArea", LuaScriptInterface::luaCreateCombatArea);
+
+	//doAreaCombat(cid, type, pos, area, min, max, effect[, origin = ORIGIN_SPELL[, blockArmor = false[, blockShield = false[, ignoreResistances = false]]]])
+	lua_register(luaState, "doAreaCombat", LuaScriptInterface::luaDoAreaCombat);
+
+	//doTargetCombat(cid, target, type, min, max, effect[, origin = ORIGIN_SPELL[, blockArmor = false[, blockShield = false[, ignoreResistances = false]]]])
+	lua_register(luaState, "doTargetCombat", LuaScriptInterface::luaDoTargetCombat);
+
+	//doChallengeCreature(cid, target[, force = false])
+	lua_register(luaState, "doChallengeCreature", LuaScriptInterface::luaDoChallengeCreature);
+
+	//addEvent(callback, delay, ...)
+	lua_register(luaState, "addEvent", LuaScriptInterface::luaAddEvent);
+
+	//stopEvent(eventid)
+	lua_register(luaState, "stopEvent", LuaScriptInterface::luaStopEvent);
+
+	//saveServer()
+	lua_register(luaState, "saveServer", LuaScriptInterface::luaSaveServer);
+
+	//cleanMap()
+	lua_register(luaState, "cleanMap", LuaScriptInterface::luaCleanMap);
+
+	//debugPrint(text)
+	lua_register(luaState, "debugPrint", LuaScriptInterface::luaDebugPrint);
+
+	//isInWar(cid, target)
+	lua_register(luaState, "isInWar", LuaScriptInterface::luaIsInWar);
+
+	//getWaypointPosition(name)
+	lua_register(luaState, "getWaypointPositionByName", LuaScriptInterface::luaGetWaypointPositionByName);
+
+	//sendChannelMessage(channelId, type, message)
+	lua_register(luaState, "sendChannelMessage", LuaScriptInterface::luaSendChannelMessage);
+
+	//sendGuildChannelMessage(guildId, type, message)
+	lua_register(luaState, "sendGuildChannelMessage", LuaScriptInterface::luaSendGuildChannelMessage);
+
+	//isScriptsInterface()
+	lua_register(luaState, "isScriptsInterface", LuaScriptInterface::luaIsScriptsInterface);
+
+#ifndef LUAJIT_VERSION
+	//bit operations for Lua, based on bitlib project release 24
+	//bit.bnot, bit.band, bit.bor, bit.bxor, bit.lshift, bit.rshift
+	luaL_register(luaState, "bit", LuaScriptInterface::luaBitReg);
+	lua_pop(luaState, 1);
+#endif
+
+	//configManager table
+	luaL_register(luaState, "configManager", LuaScriptInterface::luaConfigManagerTable);
+	lua_pop(luaState, 1);
+
+	//db table
+	luaL_register(luaState, "db", LuaScriptInterface::luaDatabaseTable);
+	lua_pop(luaState, 1);
+
+	//result table
+	luaL_register(luaState, "result", LuaScriptInterface::luaResultTable);
+	lua_pop(luaState, 1);
+
+	/* New functions */
+	//registerClass(className, baseClass, newFunction)
+	//registerTable(tableName)
+	//registerMethod(className, functionName, function)
+	//registerMetaMethod(className, functionName, function)
+	//registerGlobalMethod(functionName, function)
+	//registerVariable(tableName, name, value)
+	//registerGlobalVariable(name, value)
+	//registerEnum(value)
+	//registerEnumIn(tableName, value)
+
+	// Enums
+	registerEnums();
 
 	// _G
 	registerGlobalVariable("INDEX_WHEREEVER", INDEX_WHEREEVER);

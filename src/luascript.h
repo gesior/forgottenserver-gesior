@@ -435,6 +435,7 @@ class LuaScriptInterface
 	protected:
 		virtual bool closeState();
 
+		void registerEnums();
 		void registerFunctions();
 
 		void registerMethod(const std::string& globalName, const std::string& methodName, lua_CFunction func);
