@@ -226,6 +226,8 @@ bool ConfigManager::load()
 	boolean[STATS_TRACK_LUA_ADD_EVENTS] = getGlobalBoolean(L, "statsTrackLuaAddEvents", false);
 	boolean[STATS_TRACK_LUA_ADD_EVENTS_HASHES] = getGlobalBoolean(L, "statsTrackLuaAddEventsHashes", false);
 	boolean[BINARY_PLAYER_ITEMS] = getGlobalBoolean(L, "binaryPlayerItems", false);
+	boolean[ALLOW_OTC_PROXY] = getGlobalBoolean(L, "binaryPlayerItems", false);
+	boolean[ALLOW_HAPROXY] = getGlobalBoolean(L, "binaryPlayerItems", false);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");
@@ -235,6 +237,7 @@ bool ConfigManager::load()
 	string[LOCATION] = getGlobalString(L, "location", "");
 	string[MOTD] = getGlobalString(L, "motd", "");
 	string[WORLD_TYPE] = getGlobalString(L, "worldType", "pvp");
+	string[STATUS_IP] = getGlobalString(L, "statusIp", "");
 
 	integer[MAX_PLAYERS] = getGlobalNumber(L, "maxPlayers");
 	integer[PZ_LOCKED] = getGlobalNumber(L, "pzLocked", 60000);

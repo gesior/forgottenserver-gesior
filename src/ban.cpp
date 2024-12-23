@@ -4,12 +4,26 @@
 #include "otpch.h"
 
 #include "ban.h"
+#include "configmanager.h"
 #include "database.h"
 #include "databasetasks.h"
 #include "tools.h"
 
+extern ConfigManager g_config;
+
 bool Ban::acceptConnection(uint32_t clientIP)
 {
+	/*
+	 * With HAProxy, IP of client is known after establishing TCP connection.
+	 * In moment of connection (acceptConnection), each client has IP 127.0.0.1,
+	 * so we cannot limit number of connections per IP here.
+	 *
+	 * Anyway, use iptables (on HAProxy servers) to limit number of connections per IP, it's much more efficient.
+	 */
+	if (g_config.getBoolean(ConfigManager::ALLOW_OTC_PROXY) || g_config.getBoolean(ConfigManager::ALLOW_HAPROXY)) {
+		return true;
+	}
+
 	std::lock_guard<std::recursive_mutex> lockClass(lock);
 
 	uint64_t currentTime = OTSYS_TIME();

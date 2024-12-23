@@ -93,3 +93,21 @@ uint32_t Protocol::getIP() const
 
 	return 0;
 }
+
+bool Protocol::isOtcProxy() const
+{
+	if (auto connection = getConnection()) {
+		return connection->isOtcProxy();
+	}
+
+	return false;
+}
+
+bool Protocol::isHaProxy() const
+{
+	if (auto connection = getConnection()) {
+		return connection->isHaProxy();
+	}
+
+	return false;
+}

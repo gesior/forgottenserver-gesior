@@ -52,6 +52,8 @@ class ConfigManager
 			STATS_TRACK_LUA_ADD_EVENTS,
 			STATS_TRACK_LUA_ADD_EVENTS_HASHES,
 			BINARY_PLAYER_ITEMS,
+			ALLOW_OTC_PROXY,
+			ALLOW_HAPROXY,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};
@@ -75,6 +77,7 @@ class ConfigManager
 			DEFAULT_PRIORITY,
 			MAP_AUTHOR,
 			CONFIG_FILE,
+			STATUS_IP,
 
 			LAST_STRING_CONFIG /* this must be the last one */
 		};

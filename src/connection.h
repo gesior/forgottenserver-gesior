@@ -69,8 +69,13 @@ class Connection : public std::enable_shared_from_this<Connection>
 		void send(const OutputMessage_ptr& msg);
 
 		uint32_t getIP();
+		bool isOtcProxy() const { return otcProxy; };
+		bool isHaProxy() const { return haProxy; };
 
 	private:
+		void parseOtcProxyPacket(const boost::system::error_code& error);
+		void parseHaProxyPacket(const boost::system::error_code& error);
+		bool tryParseProxyPacket();
 		void parseHeader(const boost::system::error_code& error);
 		void parsePacket(const boost::system::error_code& error);
 
@@ -99,6 +104,11 @@ class Connection : public std::enable_shared_from_this<Connection>
 		Protocol_ptr protocol;
 
 		boost::asio::ip::tcp::socket socket;
+
+		uint32_t realIP = 0;
+		bool otcProxy = false;
+		bool haProxy = false;
+		bool receivedFirstHeader = false;
 
 		time_t timeConnected;
 		uint32_t packetsSent = 0;
