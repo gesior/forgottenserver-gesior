@@ -84,6 +84,8 @@ add_subdirectory(src)
 add_executable(tfs ${tfs_MAIN})
 target_link_libraries(tfs tfslib)
 
+target_link_options(tfs PUBLIC -flto=auto)
+
 if (BUILD_TESTING)
     message(STATUS "Building unit tests")
     enable_testing()
