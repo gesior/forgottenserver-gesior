@@ -77,6 +77,13 @@ find_package(Boost 1.66.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PUGIXML_INCLUDE_DIR})
 
+# Option to disable OTS Stats
+option(ENABLE_OTS_STATISTICS "OTS Statistics" ON)
+if (ENABLE_OTS_STATISTICS)
+    message(STATUS "OTS Statistics enabled")
+    add_definitions(-DSTATS_ENABLED)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -118,13 +125,6 @@ if(NOT SKIP_GIT)
     endif()
 endif()
 ### END  Git Version ###
-
-# Option to disable OTS Stats
-option(ENABLE_OTS_STATISTICS "OTS Statistics" ON)
-if (ENABLE_OTS_STATISTICS)
-    message(STATUS "OTS Statistics enabled")
-    add_definitions(-DSTATS_ENABLED)
-endif()
 
 # Option to disable unity builds
 option(ENABLE_UNITY_BUILD "Enable unity build" ON)
