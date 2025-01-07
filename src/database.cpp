@@ -5,7 +5,9 @@
 
 #include "configmanager.h"
 #include "database.h"
+#ifdef STATS_ENABLED
 #include "stats.h"
+#endif
 
 #include <mysql/errmsg.h>
 

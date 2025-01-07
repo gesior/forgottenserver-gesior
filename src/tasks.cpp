@@ -5,7 +5,9 @@
 
 #include "tasks.h"
 #include "game.h"
+#ifdef STATS_ENABLED
 #include "stats.h"
+#endif
 
 extern Game g_game;
 

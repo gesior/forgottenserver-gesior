@@ -25,7 +25,9 @@
 #include "globalevent.h"
 #include "script.h"
 #include "weapons.h"
+#ifdef STATS_ENABLED
 #include "stats.h"
+#endif
 
 extern Chat* g_chat;
 extern Game g_game;

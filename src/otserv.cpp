@@ -17,7 +17,9 @@
 #include "protocolstatus.h"
 #include "databasemanager.h"
 #include "scheduler.h"
+#ifdef STATS_ENABLED
 #include "stats.h"
+#endif
 #include "databasetasks.h"
 #include "script.h"
 #include <fstream>
@@ -28,7 +30,10 @@
 DatabaseTasks g_databaseTasks;
 Dispatcher g_dispatcher;
 Scheduler g_scheduler;
+
+#ifdef STATS_ENABLED
 Stats g_stats;
+#endif
 
 Game g_game;
 ConfigManager g_config;

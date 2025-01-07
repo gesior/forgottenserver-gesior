@@ -22,7 +22,9 @@
 #include "scheduler.h"
 #include "server.h"
 #include "spells.h"
+#ifdef STATS_ENABLED
 #include "stats.h"
+#endif
 #include "talkaction.h"
 #include "weapons.h"
 #include "script.h"
