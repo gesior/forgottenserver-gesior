@@ -2278,6 +2278,7 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("Item", "moveTo", LuaScriptInterface::luaItemMoveTo);
 	registerMethod("Item", "transform", LuaScriptInterface::luaItemTransform);
 	registerMethod("Item", "decay", LuaScriptInterface::luaItemDecay);
+	registerMethod("Item", "stopDecay", LuaScriptInterface::luaItemStopDecay);
 
 	registerMethod("Item", "getDescription", LuaScriptInterface::luaItemGetDescription);
 	registerMethod("Item", "getSpecialDescription", LuaScriptInterface::luaItemGetSpecialDescription);
@@ -6552,6 +6553,11 @@ int LuaScriptInterface::luaItemGetAttribute(lua_State* L)
 		attribute = ITEM_ATTRIBUTE_NONE;
 	}
 
+	if (attribute == ITEM_ATTRIBUTE_DURATION) {
+		lua_pushnumber(L, item->getDuration());
+		return 1;
+	}
+
 	if (ItemAttributes::isIntAttrType(attribute)) {
 		lua_pushnumber(L, item->getIntAttr(attribute));
 	} else if (ItemAttributes::isStrAttrType(attribute)) {
@@ -6587,6 +6593,18 @@ int LuaScriptInterface::luaItemSetAttribute(lua_State* L)
 			return 1;
 		}
 
+		if (attribute == ITEM_ATTRIBUTE_DECAYSTATE) {
+			reportErrorFunc(L, "Use \"item:decay()\" or \"item:stopDecay()\" to change decay state");
+			pushBoolean(L, false);
+			return 1;
+		}
+
+		if (attribute == ITEM_ATTRIBUTE_DURATION) {
+			item->setDuration(getNumber<int32_t>(L, 3));
+			pushBoolean(L, true);
+			return 1;
+		}
+
 		item->setIntAttr(attribute, getNumber<int32_t>(L, 3));
 		pushBoolean(L, true);
 	} else if (ItemAttributes::isStrAttrType(attribute)) {
@@ -6614,6 +6632,12 @@ int LuaScriptInterface::luaItemRemoveAttribute(lua_State* L)
 		attribute = stringToItemAttribute(getString(L, 2));
 	} else {
 		attribute = ITEM_ATTRIBUTE_NONE;
+	}
+
+	if (attribute == ITEM_ATTRIBUTE_DECAYSTATE || attribute == ITEM_ATTRIBUTE_DURATION) {
+		reportErrorFunc(L, "You can't remove decay/duration attributes");
+		pushBoolean(L, false);
+		return 1;
 	}
 
 	bool ret = attribute != ITEM_ATTRIBUTE_UNIQUEID;
@@ -6834,7 +6858,20 @@ int LuaScriptInterface::luaItemDecay(lua_State* L)
 			item->setDecayTo(getNumber<int32_t>(L, 2));
 		}
 
-		g_game.startDecay(item);
+		item->startDecaying();
+		pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int LuaScriptInterface::luaItemStopDecay(lua_State* L)
+{
+	// item:stopDecay()
+	Item* item = getUserdata<Item>(L, 1);
+	if (item) {
+		item->stopDecaying();
 		pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);

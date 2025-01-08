@@ -157,6 +157,7 @@ Item::Item(const Item& i) :
 {
 	if (i.attributes) {
 		attributes.reset(new ItemAttributes(*i.attributes));
+		attributes->removeAttribute(ITEM_ATTRIBUTE_DECAYSTATE);
 	}
 }
 
@@ -166,9 +167,7 @@ Item* Item::clone() const
 	if (attributes) {
 		item->attributes.reset(new ItemAttributes(*attributes));
 		if (item->getDuration() > 0) {
-			item->incrementReferenceCounter();
-			item->setDecaying(DECAYING_TRUE);
-			g_game.toDecayItems.push_front(item);
+			g_game.startDecay(item);
 		}
 	}
 	return item;
@@ -250,6 +249,7 @@ void Item::setID(uint16_t newid)
 	uint32_t newDuration = it.decayTime * 1000;
 
 	if (newDuration == 0 && !it.stopTime && it.decayTo < 0) {
+		g_game.stopDecay(this);
 		removeAttribute(ITEM_ATTRIBUTE_DECAYSTATE);
 		removeAttribute(ITEM_ATTRIBUTE_DURATION);
 	}
@@ -257,8 +257,17 @@ void Item::setID(uint16_t newid)
 	removeAttribute(ITEM_ATTRIBUTE_CORPSEOWNER);
 
 	if (newDuration > 0 && (!prevIt.stopTime || !hasAttribute(ITEM_ATTRIBUTE_DURATION))) {
-		setDecaying(DECAYING_FALSE);
+		g_game.stopDecay(this);
 		setDuration(newDuration);
+	} else if (!canDecay()) {
+		g_game.stopDecay(this);
+	}
+}
+
+void Item::setParent(Cylinder* cylinder) {
+	parent = cylinder;
+	if (parent == nullptr) {
+		g_game.stopDecay(this);
 	}
 }
 
@@ -458,10 +467,6 @@ Attr_ReadValue Item::readAttr(AttrTypes_t attr, PropStream& propStream)
 			uint8_t state;
 			if (!propStream.read<uint8_t>(state)) {
 				return ATTR_READ_ERROR;
-			}
-
-			if (state != DECAYING_FALSE) {
-				setDecaying(DECAYING_PENDING);
 			}
 			break;
 		}
@@ -768,13 +773,7 @@ void Item::serializeAttr(PropWriteStream& propWriteStream) const
 
 	if (hasAttribute(ITEM_ATTRIBUTE_DURATION)) {
 		propWriteStream.write<uint8_t>(ATTR_DURATION);
-		propWriteStream.write<uint32_t>(getIntAttr(ITEM_ATTRIBUTE_DURATION));
-	}
-
-	ItemDecayState_t decayState = getDecaying();
-	if (decayState == DECAYING_TRUE || decayState == DECAYING_PENDING) {
-		propWriteStream.write<uint8_t>(ATTR_DECAYING_STATE);
-		propWriteStream.write<uint8_t>(decayState);
+		propWriteStream.write<int32_t>(static_cast<int32_t>(getDuration()));
 	}
 
 	if (hasAttribute(ITEM_ATTRIBUTE_NAME)) {
@@ -1780,6 +1779,34 @@ ItemAttributes::Attribute& ItemAttributes::getAttr(itemAttrTypes type)
 void Item::startDecaying()
 {
 	g_game.startDecay(this);
+}
+
+void Item::stopDecaying()
+{
+	g_game.stopDecay(this);
+}
+
+void Item::setDuration(int64_t time)
+{
+	if (getDecaying() == DECAYING_TRUE) {
+		setIntAttr(ITEM_ATTRIBUTE_DURATION, OTSYS_TIME() + time);
+		g_game.updateDuration(this);
+	} else {
+		setIntAttr(ITEM_ATTRIBUTE_DURATION, time);
+	}
+}
+
+int64_t Item::getDuration() const
+{
+	if (!attributes) {
+		return 0;
+	}
+
+	if (getDecaying() == DECAYING_TRUE) {
+		return std::max<int64_t>(0, getIntAttr(ITEM_ATTRIBUTE_DURATION) - OTSYS_TIME());
+	} else {
+		return getIntAttr(ITEM_ATTRIBUTE_DURATION);
+	}
 }
 
 bool Item::hasMarketAttributes() const
