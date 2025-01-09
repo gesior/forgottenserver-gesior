@@ -4544,8 +4544,8 @@ void Game::stopDecay(Item *item)
 	item->setDecaying(DECAYING_FALSE);
 	item->setDuration(durationLeft);
 
-	reverseItemDecayMap.erase(it);
 	decayMap[it->second].erase(item);
+        reverseItemDecayMap.erase(it);
 	ReleaseItem(item);
 }
 
@@ -4560,8 +4560,8 @@ void Game::updateDuration(Item *item)
 		return;
 	}
 
-	reverseItemDecayMap.erase(it);
 	decayMap[it->second].erase(item);
+        reverseItemDecayMap.erase(it);
 
 	int64_t duration = item->getDuration();
 	item->setDuration(duration);
@@ -4599,8 +4599,8 @@ void Game::checkDecay()
 			break;
 		}
 
-		for(auto it2 : it->second) {
-			itemsToDecay.push_back(it2.first);
+		for(auto itemData : it->second) {
+			itemsToDecay.push_back(itemData.first);
 		}
 
 		it = decayMap.erase(it);
