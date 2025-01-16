@@ -73,7 +73,8 @@ void Game::start(ServiceManager* manager)
 		g_scheduler.addEvent(createSchedulerTask(EVENT_LIGHTINTERVAL, std::bind(&Game::checkLight, this)));
 	}
 	g_scheduler.addEvent(createSchedulerTask(EVENT_CREATURE_THINK_INTERVAL, std::bind(&Game::checkCreatures, this, 0)));
-	g_scheduler.addEvent(createSchedulerTask(EVENT_DECAYINTERVAL, std::bind(&Game::checkDecay, this)));
+	auto decayItemsEventInterval = g_config.getNumber(ConfigManager::DECAY_ITEMS_EVENT_INTERVAL);
+	g_scheduler.addEvent(createSchedulerTask(decayItemsEventInterval, std::bind(&Game::checkDecay, this)));
 }
 
 GameState_t Game::getGameState() const
@@ -4545,7 +4546,10 @@ void Game::stopDecay(Item *item)
 	item->setDuration(durationLeft);
 
 	decayMap[it->second].erase(item);
-        reverseItemDecayMap.erase(it);
+	if (decayMap[it->second].empty()) {
+		decayMap.erase(it->second);
+	}
+	reverseItemDecayMap.erase(it);
 	ReleaseItem(item);
 }
 
@@ -4561,7 +4565,10 @@ void Game::updateDuration(Item *item)
 	}
 
 	decayMap[it->second].erase(item);
-        reverseItemDecayMap.erase(it);
+	if (decayMap[it->second].empty()) {
+		decayMap.erase(it->second);
+	}
+	reverseItemDecayMap.erase(it);
 
 	int64_t duration = item->getDuration();
 	item->setDuration(duration);
@@ -4587,20 +4594,30 @@ void Game::internalDecayItem(Item* item)
 
 void Game::checkDecay()
 {
-	g_scheduler.addEvent(createSchedulerTask(EVENT_DECAYINTERVAL, std::bind(&Game::checkDecay, this)));
+	auto decayItemsEventInterval = g_config.getNumber(ConfigManager::DECAY_ITEMS_EVENT_INTERVAL);
+	g_scheduler.addEvent(createSchedulerTask(decayItemsEventInterval, std::bind(&Game::checkDecay, this)));
 
-	int64_t time = OTSYS_TIME();
-
+	int64_t currentTime = OTSYS_TIME();
 	std::list<Item*> itemsToDecay;
-
+	bool tooManyItemsToDecay = false;
 	auto it = decayMap.begin(), end = decayMap.end();
 	while (it != end) {
-		if (it->first > time) {
+		if (it->first > currentTime) {
 			break;
 		}
 
 		for(auto itemData : it->second) {
+			if (itemsToDecay.size() == g_config.getNumber(ConfigManager::DECAY_ITEMS_PER_EVENT_LIMIT)) {
+				tooManyItemsToDecay = true;
+				break;
+			}
+
 			itemsToDecay.push_back(itemData.first);
+		}
+
+		if (tooManyItemsToDecay) {
+			std::cout << "[Warning - Game::checkDecay] decayItemsPerEventLimit limited items decay!" << std::endl;
+			break;
 		}
 
 		it = decayMap.erase(it);

@@ -49,7 +49,6 @@ enum GameState_t {
 
 static constexpr int32_t EVENT_LIGHTINTERVAL = 10000;
 static constexpr int32_t EVENT_WORLDTIMEINTERVAL = 2500;
-static constexpr int32_t EVENT_DECAYINTERVAL = 50;
 
 /**
   * Main Game class.
