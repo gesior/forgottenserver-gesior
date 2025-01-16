@@ -4594,8 +4594,10 @@ void Game::internalDecayItem(Item* item)
 
 void Game::checkDecay()
 {
-	auto decayItemsEventInterval = g_config.getNumber(ConfigManager::DECAY_ITEMS_EVENT_INTERVAL);
-	g_scheduler.addEvent(createSchedulerTask(decayItemsEventInterval, std::bind(&Game::checkDecay, this)));
+	auto eventInterval = g_config.getNumber(ConfigManager::DECAY_ITEMS_EVENT_INTERVAL);
+	auto itemsPerEventLimit = static_cast<uint32_t>(g_config.getNumber(ConfigManager::DECAY_ITEMS_PER_EVENT_LIMIT));
+
+	g_scheduler.addEvent(createSchedulerTask(eventInterval, std::bind(&Game::checkDecay, this)));
 
 	int64_t currentTime = OTSYS_TIME();
 	std::list<Item*> itemsToDecay;
@@ -4607,7 +4609,7 @@ void Game::checkDecay()
 		}
 
 		for(auto itemData : it->second) {
-			if (itemsToDecay.size() == g_config.getNumber(ConfigManager::DECAY_ITEMS_PER_EVENT_LIMIT)) {
+			if (itemsToDecay.size() == itemsPerEventLimit) {
 				tooManyItemsToDecay = true;
 				break;
 			}
