@@ -5798,3 +5798,245 @@ bool Game::reload(ReloadTypes_t reloadType)
 	}
 	return true;
 }
+
+std::string getWikiSlotName(int32_t slotPosition)
+{
+	if (slotPosition & SLOTP_TWO_HAND) {
+		return "two-handed";
+	}
+	if (slotPosition & SLOTP_AMMO) {
+		return "ammo";
+	}
+	if (slotPosition & SLOTP_RING) {
+		return "ring";
+	}
+	if (slotPosition & SLOTP_FEET) {
+		return "boots";
+	}
+	if (slotPosition & SLOTP_LEGS) {
+		return "legs";
+	}
+	if (slotPosition & SLOTP_ARMOR) {
+		return "armor";
+	}
+	if (slotPosition & SLOTP_NECKLACE) {
+		return "necklace";
+	}
+	if (slotPosition & SLOTP_HEAD) {
+		return "head";
+	}
+
+	return "";
+}
+
+std::string getWikiStatsName(int stats)
+{
+	switch (stats) {
+		case STAT_MAXHITPOINTS:
+			return "Max Health";
+		case STAT_MAXMANAPOINTS:
+			return "Max Mana";
+		case STAT_SOULPOINTS:
+			return "Soul";
+		case STAT_MAGICPOINTS:
+			return "Magic Level";
+		default:
+			return "Unknown";
+	}
+}
+
+std::string getWikiStatsPercentName(int statsPercent)
+{
+	switch (statsPercent) {
+		case STAT_MAXHITPOINTS:
+			return "Max Health Percent";
+		case STAT_MAXMANAPOINTS:
+			return "Max Mana Percent";
+		case STAT_SOULPOINTS:
+			return "Soul";
+		case STAT_MAGICPOINTS:
+			return "Magic Level Percent";
+		default:
+			return "Unknown";
+	}
+}
+
+std::string getWikiWeaponTypeName(int weaponType)
+{
+	switch (weaponType) {
+		case WEAPON_SWORD:
+			return "sword";
+		case WEAPON_CLUB:
+			return "club";
+		case WEAPON_AXE:
+			return "axe";
+		case WEAPON_SHIELD:
+			return "shield";
+		case WEAPON_DISTANCE:
+			return "distance";
+		case WEAPON_WAND:
+			return "wand";
+		case WEAPON_AMMO:
+			return "ammunition";
+		default:
+			return "";
+	}
+}
+
+std::string getWikiSpecialSkillName(int stats)
+{
+	return getSpecialSkillName(stats);
+}
+
+std::string getWikiCombatName(int combatType)
+{
+	return getCombatName(static_cast<CombatType_t>(1 << combatType));
+}
+
+void Game::dumpItems()
+{
+	for (int itemId = 0; itemId < 150000; itemId++) {
+//		if (itemId != 2161 &&
+//			itemId != 2160 &&
+//			itemId != 26185 &&
+//			itemId != 26186 &&
+//			itemId != 26188 &&
+//			itemId != 2000 &&
+//			itemId != 2392 &&
+//			itemId != 2168 &&
+//			itemId != 2205 &&
+//			itemId != 25174
+//				) {
+//			continue;
+//		}
+		const ItemType& itemType = Item::items[itemId];
+		if (itemType.id) {
+			Item* item = Item::CreateItem(itemId, 1);
+			if (item) {
+				auto description = item->getDescription(1);
+				replaceString(description, "\n", "<br />");
+				std::cout << "WIKIITEM:id:" << itemType.id << ":id:" << itemType.id<< std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":group:" << (int) itemType.group << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":type:" << (int) itemType.type << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":name:" << item->getName() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":description:" << description << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":maxItems:" << (int) itemType.maxItems << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":transformDeEquipTo:" << (int) itemType.transformDeEquipTo << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":transformEquipTo:" << (int) itemType.transformEquipTo << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":slotPosition:" << (int) item->getSlotPosition() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":slotName:" << getWikiSlotName(item->getSlotPosition()) << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":weight:" << item->getWeight() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":worth:" << (int) item->getWorth() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":armor:" << (int) item->getArmor() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":defense:" << (int) item->getDefense() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":extraDefense:" << (int) item->getExtraDefense() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":attack:" << (int) item->getAttack() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":duration:" << (int) itemType.decayTime << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":stopDuration:" << (int) itemType.stopTime << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":speed:" << (int) itemType.speed << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":pickupable:" << (int) item->isPickupable() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":moveable:" << (int) item->isMoveable() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":stackable:" << (int) item->isStackable() << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":ammoType:" << (int) itemType.ammoType << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":shootRange:" << (int) itemType.shootRange << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":hitChance:" << (int) itemType.hitChance << std::endl;
+				std::cout << "WIKIITEM:id:" << itemType.id << ":maxHitChance:" << (int) itemType.maxHitChance << std::endl;
+
+				const Weapon* weapon = g_weapons->getWeapon(item);
+				if (weapon) {
+					std::cout << "WIKIITEM:id:" << itemType.id << ":weaponType:" << (int) item->getWeaponType() << std::endl;
+					std::cout << "WIKIITEM:id:" << itemType.id << ":weaponTypeName:" << getWikiWeaponTypeName(item->getWeaponType()) << std::endl;
+					weapon->dumpWeaponInfo(item, &itemType);
+				}
+				if (itemType.abilities) {
+					if (itemType.abilities->healthGain && itemType.abilities->healthTicks) {
+						std::cout << "WIKIITEM:id:" << itemType.id << ":healthRegeneration_gain:"
+								  << itemType.abilities->healthGain << std::endl;
+						std::cout << "WIKIITEM:id:" << itemType.id << ":healthRegeneration_ticks:"
+								  << itemType.abilities->healthTicks << std::endl;
+					}
+					if (itemType.abilities->manaGain && itemType.abilities->manaTicks) {
+						std::cout << "WIKIITEM:id:" << itemType.id << ":manaRegeneration_gain:"
+								  << itemType.abilities->manaGain << std::endl;
+						std::cout << "WIKIITEM:id:" << itemType.id << ":manaRegeneration_ticks:"
+								  << itemType.abilities->manaTicks << std::endl;
+					}
+
+					// stats
+					for (size_t i = 0; i < COMBAT_COUNT; ++i) {
+						auto name = getWikiCombatName(static_cast<CombatType_t>(i));
+						int value = itemType.abilities->absorbPercent[i];
+						if (value != 0) {
+							std::cout << "WIKIITEM:id:" << itemType.id << ":absorb_" << name << ":" << value
+									  << std::endl;
+						}
+					}
+					for (int i = 0; i <= STAT_LAST; ++i) {
+						auto name = getWikiStatsName(i);
+						int value = itemType.abilities->stats[i];
+						if (value != 0) {
+							std::cout << "WIKIITEM:id:" << itemType.id << ":stats_" << name << ":" << value
+									  << std::endl;
+						}
+					}
+					for (int i = 0; i <= STAT_LAST; ++i) {
+						auto name = getWikiStatsPercentName(i);
+						int value = itemType.abilities->statsPercent[i];
+						if (value != 0) {
+							std::cout << "WIKIITEM:id:" << itemType.id << ":statsPercent_" << name << ":" << value
+									  << std::endl;
+						}
+					}
+					for (int i = SPECIALSKILL_FIRST; i <= SPECIALSKILL_LAST; i++) {
+						auto name = getWikiSpecialSkillName(i);
+						int value = itemType.abilities->specialSkills[i];
+						if (value != 0) {
+							std::cout << "WIKIITEM:id:" << itemType.id << ":specialSkill" << name << ":" << value
+									  << std::endl;
+						}
+					}
+				}
+				delete item;
+			}
+		}
+	}
+}
+
+void printWikiMonsterLoot(const std::string& monsterName, const std::vector<LootBlock>& lootList) {
+	for (const auto &lootBlock: lootList) {
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":loot:" <<
+				  (int) lootBlock.id << "," <<
+				  (int) lootBlock.chance << "," <<
+				  (int) lootBlock.countmax << "," <<
+				  std::endl;
+
+		printWikiMonsterLoot(monsterName, lootBlock.childLoot);
+	}
+}
+
+void Game::dumpMonsters() {
+	for (auto &data: g_monsters.monsters) {
+		auto monsterName = data.first;
+		auto &mType = data.second;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":spawnName:" << monsterName << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":name:" << mType.name << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":armor:" << mType.info.armor << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":defense:" << mType.info.defense << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":health:" << mType.info.healthMax << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":experience:" << mType.info.experience << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":manaCost:" << mType.info.manaCost << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":summonable:" << (int) mType.info.isSummonable << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":convinceable:" << (int) mType.info.isConvinceable << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":speed:" << mType.info.baseSpeed << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookType:" << (int) mType.info.outfit.lookType << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookTypeEx:" << (int) mType.info.outfit.lookTypeEx << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookAddons:" << (int) mType.info.outfit.lookAddons << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookMount:" << (int) mType.info.outfit.lookMount << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookHead:" << (int) mType.info.outfit.lookHead << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookBody:" << (int) mType.info.outfit.lookBody << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookLegs:" << (int) mType.info.outfit.lookLegs << std::endl;
+		std::cout << "WIKIMONSTER:name:" << monsterName << ":lookFeet:" << (int) mType.info.outfit.lookFeet << std::endl;
+
+		printWikiMonsterLoot(monsterName, mType.info.lootItems);
+	}
+}

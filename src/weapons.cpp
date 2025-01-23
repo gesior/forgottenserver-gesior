@@ -926,3 +926,30 @@ int32_t WeaponWand::getWeaponDamage(const Player*, const Creature*, const Item*,
 	}
 	return -normal_random(minChange, maxChange);
 }
+
+void Weapon::dumpWeaponInfo(const Item* item, const ItemType* itemType) const
+{
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponBreakChance:" << (int) breakChance << std::endl;
+}
+
+void WeaponMelee::dumpWeaponInfo(const Item* item, const ItemType* itemType) const
+{
+	Weapon::dumpWeaponInfo(item, itemType);
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponElementType:" << (int) elementType << std::endl;
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponElementDamage:" << (int) elementDamage << std::endl;
+}
+
+void WeaponDistance::dumpWeaponInfo(const Item* item, const ItemType* itemType) const
+{
+	Weapon::dumpWeaponInfo(item, itemType);
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponElementType:" << (int) elementType << std::endl;
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponElementDamage:" << (int) elementDamage << std::endl;
+}
+
+void WeaponWand::dumpWeaponInfo(const Item* item, const ItemType* itemType) const
+{
+	Weapon::dumpWeaponInfo(item, itemType);
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponWandCombatType:" << (int) params.combatType << std::endl;
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponMinChange:" << (int) minChange << std::endl;
+	std::cout << "WIKIITEM:id:" << itemType->id << ":weaponMaxChange:" << (int) maxChange << std::endl;
+}

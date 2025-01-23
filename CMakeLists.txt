@@ -83,17 +83,18 @@ target_link_libraries(tfs PRIVATE
         ${MYSQL_CLIENT_LIBS}
         ${PUGIXML_LIBRARIES}
         )
+target_link_options(tfs PUBLIC -flto=auto)
 
 ### INTERPROCEDURAL_OPTIMIZATION ###
 cmake_policy(SET CMP0069 NEW)
 include(CheckIPOSupported)
-check_ipo_supported(RESULT result OUTPUT error)
-if (result)
-    message(STATUS "IPO / LTO enabled")
-    set_target_properties(tfs PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-else ()
-    message(STATUS "IPO / LTO not supported: <${error}>")
-endif ()
+#check_ipo_supported(RESULT result OUTPUT error)
+#if (result)
+#    message(STATUS "IPO / LTO enabled")
+#    set_target_properties(tfs PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+#else ()
+#    message(STATUS "IPO / LTO not supported: <${error}>")
+#endif ()
 ### END INTERPROCEDURAL_OPTIMIZATION ###
 
 ### Git Version ###
