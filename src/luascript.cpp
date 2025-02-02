@@ -48,6 +48,7 @@ ScriptEnvironment::DBResultMap ScriptEnvironment::tempResults;
 uint32_t ScriptEnvironment::lastResultId = 0;
 
 std::multimap<ScriptEnvironment*, Item*> ScriptEnvironment::tempItems;
+std::map<uint32_t, int64_t> globalStorageMap;
 
 LuaEnvironment g_luaEnvironment;
 
@@ -609,6 +610,40 @@ void LuaScriptInterface::callVoidFunction(int params)
 	}
 
 	resetScriptEnv();
+}
+
+void LuaScriptInterface::loadGlobalStorages()
+{
+	Database& db = Database::getInstance();
+	DBResult_ptr result = db.storeQuery("SELECT `key`, `value` FROM `global_storage`");
+	if (result) {
+		do {
+			globalStorageMap[result->getNumber<uint32_t>("key")] = result->getNumber<int64_t>("value");
+		} while (result->next());
+	}
+}
+
+bool LuaScriptInterface::saveGlobalStorages()
+{
+	Database& db = Database::getInstance();
+
+	if (!db.executeQuery("DELETE FROM `global_storage`")) {
+		return false;
+	}
+
+	DBInsert storageQuery("INSERT INTO `global_storage` (`key`, `value`) VALUES ");
+
+	for (const auto& it : globalStorageMap) {
+		if (!storageQuery.addRow(fmt::format("{:d}, {:d}", it.first, it.second))) {
+			return false;
+		}
+	}
+
+	if (!storageQuery.execute()) {
+		return false;
+	}
+
+	return true;
 }
 
 void LuaScriptInterface::pushVariant(lua_State* L, const LuaVariant& var)
@@ -2070,6 +2105,8 @@ void LuaScriptInterface::registerFunctions()
 	// Game
 	registerTable("Game");
 
+	registerMethod("Game", "getStorageValue", LuaScriptInterface::luaGameGetStorageValue);
+	registerMethod("Game", "setStorageValue", LuaScriptInterface::luaGameSetStorageValue);
 	registerMethod("Game", "getSpectators", LuaScriptInterface::luaGameGetSpectators);
 	registerMethod("Game", "getPlayers", LuaScriptInterface::luaGameGetPlayers);
 	registerMethod("Game", "loadMap", LuaScriptInterface::luaGameLoadMap);
@@ -4273,6 +4310,35 @@ int LuaScriptInterface::luaTablePack(lua_State* L)
 }
 
 // Game
+int32_t LuaScriptInterface::luaGameGetStorageValue(lua_State* L)
+{
+	// Game.getStorageValue(key)
+	const auto key = getNumber<uint32_t>(L, 1);
+	auto it = globalStorageMap.find(key);
+	if(it != globalStorageMap.end())
+	{
+		lua_pushnumber(L, it->second);
+		return 1;
+	}
+
+	lua_pushnumber(L, -1);
+	return 1;
+}
+
+int32_t LuaScriptInterface::luaGameSetStorageValue(lua_State* L)
+{
+	// Game.setStorageValue(key, value)
+	const auto key = getNumber<uint32_t>(L, 1);
+	const auto value = getNumber<int64_t>(L, 2);
+	if (value == -1) {
+		globalStorageMap.erase(key);
+		return 1;
+	}
+
+	globalStorageMap[key] = value;
+	return 1;
+}
+
 int LuaScriptInterface::luaGameGetSpectators(lua_State* L)
 {
 	// Game.getSpectators(position[, multifloor = false[, onlyPlayer = false[, minRangeX = 0[, maxRangeX = 0[, minRangeY = 0[, maxRangeY = 0]]]]]])

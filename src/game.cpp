@@ -113,6 +113,7 @@ void Game::setGameState(GameState_t newState)
 			loadMotdNum();
 			loadPlayersRecord();
 			loadAccountStorageValues();
+			LuaScriptInterface::loadGlobalStorages();
 
 			g_globalEvents->startup();
 			break;
@@ -182,6 +183,7 @@ void Game::saveGameState()
 	}
 
 	Map::save();
+	LuaScriptInterface::saveGlobalStorages();
 
 	g_databaseTasks.flush();
 
