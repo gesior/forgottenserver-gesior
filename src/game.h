@@ -49,8 +49,6 @@ enum GameState_t {
 
 static constexpr int32_t EVENT_LIGHTINTERVAL = 10000;
 static constexpr int32_t EVENT_WORLDTIMEINTERVAL = 2500;
-static constexpr int32_t EVENT_DECAYINTERVAL = 250;
-static constexpr int32_t EVENT_DECAY_BUCKETS = 4;
 
 /**
   * Main Game class.
@@ -446,6 +444,8 @@ class Game
 		bool saveAccountStorageValues() const;
 
 		void startDecay(Item* item);
+		void stopDecay(Item* item);
+		void updateDuration(Item *item);
 
 		int16_t getWorldTime() { return worldTime; }
 		void updateWorldTime();
@@ -495,8 +495,6 @@ class Game
 		Raids raids;
 		Quests quests;
 
-		std::forward_list<Item*> toDecayItems;
-
 		std::unordered_set<Tile*> getTilesToClean() const {
 			return tilesToClean;
 		}
@@ -528,13 +526,12 @@ class Game
 		std::map<uint32_t, uint32_t> stages;
 		std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> accountStorageMap;
 
-		std::list<Item*> decayItems[EVENT_DECAY_BUCKETS];
+		std::map<int64_t, std::map<Item *, Item *>> decayMap;
+		std::map<Item *, int64_t> reverseItemDecayMap;
 		std::list<Creature*> checkCreatureLists[EVENT_CREATURECOUNT];
 
 		std::vector<Creature*> ToReleaseCreatures;
 		std::vector<Item*> ToReleaseItems;
-
-		size_t lastBucket = 0;
 
 		WildcardTreeNode wildcardTree { false };
 

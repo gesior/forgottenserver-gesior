@@ -5,6 +5,9 @@ ec.onLook = function(self, thing, position, distance, description)
 	if self:getGroup():getAccess() then
 		if thing:isItem() then
 			description = string.format("%s\nItem ID: %d", description, thing:getId())
+			if thing:getDuration() > 0 then
+				description = string.format("%s\nDuration left: %d", description, thing:getDuration())
+			end
 
 			local actionId = thing:getActionId()
 			if actionId ~= 0 then

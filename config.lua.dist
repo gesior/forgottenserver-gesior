@@ -54,6 +54,10 @@ onlyInvitedCanMoveHouseItems = true
 timeBetweenActions = 200
 timeBetweenExActions = 1000
 
+-- Item Decay
+decayItemsEventInterval = 50
+decayItemsPerEventLimit = 1000
+
 -- Map
 -- NOTE: set mapName WITHOUT .otbm at the end
 mapName = "forgotten"

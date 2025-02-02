@@ -44,7 +44,6 @@ enum TradeEvents_t {
 enum ItemDecayState_t : uint8_t {
 	DECAYING_FALSE = 0,
 	DECAYING_TRUE,
-	DECAYING_PENDING,
 };
 
 enum AttrTypes_t {
@@ -181,23 +180,6 @@ class ItemAttributes
 		}
 		uint32_t getCorpseOwner() const {
 			return getIntAttr(ITEM_ATTRIBUTE_CORPSEOWNER);
-		}
-
-		void setDuration(int32_t time) {
-			setIntAttr(ITEM_ATTRIBUTE_DURATION, time);
-		}
-		void decreaseDuration(int32_t time) {
-			increaseIntAttr(ITEM_ATTRIBUTE_DURATION, -time);
-		}
-		uint32_t getDuration() const {
-			return getIntAttr(ITEM_ATTRIBUTE_DURATION);
-		}
-
-		void setDecaying(ItemDecayState_t decayState) {
-			setIntAttr(ITEM_ATTRIBUTE_DECAYSTATE, decayState);
-		}
-		ItemDecayState_t getDecaying() const {
-			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
 		}
 
 		struct CustomAttribute
@@ -752,19 +734,10 @@ class Item : virtual public Thing
 			return getIntAttr(ITEM_ATTRIBUTE_CORPSEOWNER);
 		}
 
-		void setDuration(int32_t time) {
-			setIntAttr(ITEM_ATTRIBUTE_DURATION, time);
-		}
-		void decreaseDuration(int32_t time) {
-			increaseIntAttr(ITEM_ATTRIBUTE_DURATION, -time);
-		}
-		uint32_t getDuration() const {
-			if (!attributes) {
-				return 0;
-			}
-			return getIntAttr(ITEM_ATTRIBUTE_DURATION);
-		}
+		void setDuration(int64_t time);
+		int64_t getDuration() const;
 
+		// do not use, for decay algorithm only!
 		void setDecaying(ItemDecayState_t decayState) {
 			setIntAttr(ITEM_ATTRIBUTE_DECAYSTATE, decayState);
 		}
@@ -773,6 +746,15 @@ class Item : virtual public Thing
 				return DECAYING_FALSE;
 			}
 			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
+		}
+
+		// do not use, for decay algorithm only!
+		int64_t getDurationValue() const {
+			if (!attributes) {
+				return 0;
+			}
+
+			return getIntAttr(ITEM_ATTRIBUTE_DURATION);
 		}
 
 		void setDecayTo(int32_t decayTo) {
@@ -988,6 +970,7 @@ class Item : virtual public Thing
 		virtual void onTradeEvent(TradeEvents_t, Player*) {}
 
 		virtual void startDecaying();
+		virtual void stopDecaying();
 
 		bool isLoadedFromMap() const {
 			return loadedFromMap;
@@ -1020,9 +1003,7 @@ class Item : virtual public Thing
 		Cylinder* getParent() const override {
 			return parent;
 		}
-		void setParent(Cylinder* cylinder) override {
-			parent = cylinder;
-		}
+		void setParent(Cylinder* cylinder) override;
 		Cylinder* getTopParent();
 		const Cylinder* getTopParent() const;
 		Tile* getTile() override;
