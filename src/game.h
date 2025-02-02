@@ -443,7 +443,6 @@ class Game
 		void loadAccountStorageValues();
 		bool saveAccountStorageValues() const;
 
-		bool isDecaying(Item* item);
 		void startDecay(Item* item);
 		void stopDecay(Item* item);
 		void updateDuration(Item *item);

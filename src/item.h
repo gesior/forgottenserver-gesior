@@ -737,9 +737,7 @@ class Item : virtual public Thing
 		void setDuration(int64_t time);
 		int64_t getDuration() const;
 
-		/**
-		 * for decay algorithm only
-		 */
+		// do not use, for decay algorithm only!
 		void setDecaying(ItemDecayState_t decayState) {
 			setIntAttr(ITEM_ATTRIBUTE_DECAYSTATE, decayState);
 		}
@@ -750,9 +748,7 @@ class Item : virtual public Thing
 			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
 		}
 
-		/**
-		 * for decay algorithm only
-		 */
+		// do not use, for decay algorithm only!
 		int64_t getDurationValue() const {
 			if (!attributes) {
 				return 0;

@@ -4500,22 +4500,13 @@ bool Game::saveAccountStorageValues() const
 	return transaction.commit();
 }
 
-bool Game::isDecaying(Item *item)
-{
-	if (!item) {
-		return false;
-	}
-
-	return reverseItemDecayMap.find(item) != reverseItemDecayMap.end();
-}
-
 void Game::startDecay(Item *item)
 {
 	if (!item || !item->canDecay()) {
 		return;
 	}
 
-	if (isDecaying(item)) {
+	if (reverseItemDecayMap.find(item) != reverseItemDecayMap.end()) {
 		return;
 	}
 
