@@ -4381,17 +4381,20 @@ int LuaScriptInterface::luaGameGetPlayers(lua_State* L)
 
 int LuaScriptInterface::luaGameLoadMap(lua_State* L)
 {
-	// Game.loadMap(path)
+	// Game.loadMap(path[, positionOffset])
 	const std::string& path = getString(L, 1);
-	g_dispatcher.addTask(createTask([path]() {
-		try {
-			g_game.loadMap(path);
-		} catch (const std::exception& e) {
-			// FIXME: Should only catch some exceptions
-			std::cout << "[Error - LuaScriptInterface::luaGameLoadMap] Failed to load map: "
-				<< e.what() << std::endl;
-		}
-	}));
+	Position positionOffset;
+	if (lua_gettop(L) >= 2) {
+		positionOffset = getPosition(L, 2);
+	}
+
+	try {
+		g_game.loadMap(path, positionOffset);
+	} catch (const std::exception& e) {
+		// FIXME: Should only catch some exceptions
+		std::cout << "[Error - LuaScriptInterface::luaGameLoadMap] Failed to load map: "
+				  << e.what() << std::endl;
+	}
 	return 0;
 }
 

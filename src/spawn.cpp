@@ -20,12 +20,8 @@ extern Events* g_events;
 static constexpr int32_t MINSPAWN_INTERVAL = 10 * 1000; // 10 seconds to match RME
 static constexpr int32_t MAXSPAWN_INTERVAL = 24 * 60 * 60 * 1000; // 1 day
 
-bool Spawns::loadFromXml(const std::string& filename)
+bool Spawns::loadFromXml(const std::string& filename, const Position& positionOffset)
 {
-	if (loaded) {
-		return true;
-	}
-
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(filename.c_str());
 	if (!result) {
@@ -33,14 +29,15 @@ bool Spawns::loadFromXml(const std::string& filename)
 		return false;
 	}
 
+	mapPartSpawns.clear();
 	this->filename = filename;
 	loaded = true;
 
 	for (auto spawnNode : doc.child("spawns").children()) {
 		Position centerPos(
-			pugi::cast<uint16_t>(spawnNode.attribute("centerx").value()),
-			pugi::cast<uint16_t>(spawnNode.attribute("centery").value()),
-			pugi::cast<uint16_t>(spawnNode.attribute("centerz").value())
+			pugi::cast<uint16_t>(spawnNode.attribute("centerx").value()) + positionOffset.x,
+			pugi::cast<uint16_t>(spawnNode.attribute("centery").value()) + positionOffset.y,
+			pugi::cast<uint16_t>(spawnNode.attribute("centerz").value()) + positionOffset.z
 		);
 
 		int32_t radius;
@@ -62,6 +59,9 @@ bool Spawns::loadFromXml(const std::string& filename)
 
 		spawnList.emplace_front(centerPos, radius);
 		Spawn& spawn = spawnList.front();
+		if (started) {
+			mapPartSpawns.push_back(&spawn);
+		}
 
 		for (auto childNode : spawnNode.children()) {
 			if (strcasecmp(childNode.name(), "monsters") == 0) {
@@ -190,6 +190,23 @@ bool Spawns::loadFromXml(const std::string& filename)
 			}
 		}
 	}
+
+	// loading map part after server start
+	if (started) {
+		for (Npc* npc : npcList) {
+			if (!g_game.placeCreature(npc, npc->getMasterPos(), false, true)) {
+				std::cout << "[Warning - Spawns::startup] Couldn't spawn npc \"" << npc->getName() << "\" on position: " << npc->getMasterPos() << '.' << std::endl;
+				delete npc;
+			}
+		}
+		npcList.clear();
+
+		for (Spawn* spawn : mapPartSpawns) {
+			spawn->startup(true);
+		}
+		mapPartSpawns.clear();
+	}
+
 	return true;
 }
 
@@ -269,7 +286,7 @@ bool Spawn::isInSpawnZone(const Position& pos)
 	return Spawns::isInZone(centerPos, radius, pos);
 }
 
-bool Spawn::spawnMonster(uint32_t spawnId, spawnBlock_t sb, bool startup/* = false*/)
+bool Spawn::spawnMonster(uint32_t spawnId, spawnBlock_t sb, bool startup/* = false*/, bool started/* = false*/)
 {
 	bool isBlocked = !startup && findPlayer(sb.pos);
 	size_t monstersCount = sb.mTypes.size(), blockedMonsters = 0;
@@ -282,10 +299,10 @@ bool Spawn::spawnMonster(uint32_t spawnId, spawnBlock_t sb, bool startup/* = fal
 			}
 
 			if (!roll) {
-				return spawnMonster(spawnId, pair.first, sb.pos, sb.direction, startup);
+				return spawnMonster(spawnId, pair.first, sb.pos, sb.direction, startup, started);
 			}
 
-			if (pair.second >= normal_random(1, 100) && spawnMonster(spawnId, pair.first, sb.pos, sb.direction, startup)) {
+			if (pair.second >= normal_random(1, 100) && spawnMonster(spawnId, pair.first, sb.pos, sb.direction, startup, started)) {
 				return true;
 			}
 		}
@@ -307,14 +324,14 @@ bool Spawn::spawnMonster(uint32_t spawnId, spawnBlock_t sb, bool startup/* = fal
 	return spawnFunc(false);
 }
 
-bool Spawn::spawnMonster(uint32_t spawnId, MonsterType* mType, const Position& pos, Direction dir, bool startup/*= false*/)
+bool Spawn::spawnMonster(uint32_t spawnId, MonsterType* mType, const Position& pos, Direction dir, bool startup/*= false*/, bool started/* = false*/)
 {
 	std::unique_ptr<Monster> monster_ptr(new Monster(mType));
 	if (!g_events->eventMonsterOnSpawn(monster_ptr.get(), pos, startup, false)) {
 		return false;
 	}
 
-	if (startup) {
+	if (startup && !started) {
 		//No need to send out events to the surrounding since there is no one out there to listen!
 		if (!g_game.internalPlaceCreature(monster_ptr.get(), pos, true)) {
 			std::cout << "[Warning - Spawns::startup] Couldn't spawn monster \"" << monster_ptr->getName() << "\" on position: " << pos << '.' << std::endl;
@@ -337,12 +354,12 @@ bool Spawn::spawnMonster(uint32_t spawnId, MonsterType* mType, const Position& p
 	return true;
 }
 
-void Spawn::startup()
+void Spawn::startup(bool started)
 {
 	for (const auto& it : spawnMap) {
 		uint32_t spawnId = it.first;
 		const spawnBlock_t& sb = it.second;
-		spawnMonster(spawnId, sb, true);
+		spawnMonster(spawnId, sb, true, started);
 	}
 }
 

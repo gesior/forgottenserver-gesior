@@ -73,7 +73,7 @@ class Game
 		void forceRemoveCondition(uint32_t creatureId, ConditionType_t type);
 
 		bool loadMainMap(const std::string& filename);
-		void loadMap(const std::string& path);
+		void loadMap(const std::string& path, const Position& positionOffset);
 
 		/**
 		  * Get the map size - info purpose only
