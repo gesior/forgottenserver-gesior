@@ -228,6 +228,7 @@ bool ConfigManager::load()
 	boolean[BINARY_PLAYER_ITEMS] = getGlobalBoolean(L, "binaryPlayerItems", false);
 	boolean[ALLOW_OTC_PROXY] = getGlobalBoolean(L, "allowOtcProxy", false);
 	boolean[ALLOW_HAPROXY] = getGlobalBoolean(L, "allowHaProxy", false);
+	boolean[ENABLE_LUA_DEBUG_COMMAND] = getGlobalBoolean(L, "enableLuaDebugCommand", false);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");

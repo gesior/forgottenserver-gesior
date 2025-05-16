@@ -199,3 +199,9 @@ statsTrackLuaAddEvents = false
 -- if you want to track CPU usage of individual addEvent scripts, enable this option - IT WILL USE A LOT MORE CPU!
 -- hashID = stack backtrace will be printed in server console, so you must log server output to some file
 statsTrackLuaAddEventsHashes = false
+
+-- Lua debug command: !lua /lua
+-- ONLY for localhost tests!
+-- Any GOD character with access to that command may get all data from database,
+-- copy all server files and even take control over your PC!
+enableLuaDebugCommand = false

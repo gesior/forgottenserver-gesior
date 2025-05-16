@@ -2040,6 +2040,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::LUA_ITEM_DESC)
 	registerEnumIn("configKeys", ConfigManager::ALLOW_OTC_PROXY);
 	registerEnumIn("configKeys", ConfigManager::ALLOW_HAPROXY);
+	registerEnumIn("configKeys", ConfigManager::ENABLE_LUA_DEBUG_COMMAND);
 
 	registerEnumIn("configKeys", ConfigManager::MAP_NAME)
 	registerEnumIn("configKeys", ConfigManager::HOUSE_RENT_PERIOD)
