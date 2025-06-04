@@ -29,6 +29,11 @@ void ProtocolLogin::disconnectClient(const std::string& message, uint16_t versio
 
 void ProtocolLogin::getCharacterList(const std::string& accountName, const std::string& password, const std::string& token, uint16_t version)
 {
+	auto connection = getConnection();
+	if (!connection) {
+		return;
+	}
+
 	Account account;
 	if (!IOLoginData::loginserverAuthentication(accountName, password, account)) {
 		disconnectClient("Account name or password is not correct.", version);
@@ -72,9 +77,9 @@ void ProtocolLogin::getCharacterList(const std::string& accountName, const std::
 		for (uint8_t i = 0; i < 2; i++) {
 			output->addByte(i); // world id
 			output->addString(i == 0 ? "Offline" : "Online");
-			if (getConnection()->isOtcProxy()) {
+			if (connection->isOtcProxy()) {
 				output->addString("127.0.0.1");
-			} else if (getConnection()->isHaProxy()) {
+			} else if (connection->isHaProxy()) {
 				output->addString(g_config.getString(ConfigManager::STATUS_IP));
 			} else {
 				output->addString(g_config.getString(ConfigManager::IP));
@@ -86,9 +91,9 @@ void ProtocolLogin::getCharacterList(const std::string& accountName, const std::
 		output->addByte(1); // number of worlds
 		output->addByte(0); // world id
 		output->addString(g_config.getString(ConfigManager::SERVER_NAME));
-		if (getConnection()->isOtcProxy()) {
+		if (connection->isOtcProxy()) {
 			output->addString("127.0.0.1");
-		} else if (getConnection()->isHaProxy()) {
+		} else if (connection->isHaProxy()) {
 			output->addString(g_config.getString(ConfigManager::STATUS_IP));
 		} else {
 			output->addString(g_config.getString(ConfigManager::IP));
