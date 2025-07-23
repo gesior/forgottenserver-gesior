@@ -1,0 +1,34 @@
+services:
+  ots:
+    build:
+      context: ../../
+      dockerfile: ./docker/builds/Dockerfile-Ubuntu2404-libmariadb
+    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 1s
+    environment:
+      MYSQL_HOST: database
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: forgottenserver
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: mariadb:latest
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: forgottenserver
+    volumes:
+      - ../../schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ../data.sql:/docker-entrypoint-initdb.d/02-data.sql
+    healthcheck:
+      test: ["CMD", "mariadb", "-u", "root", "-proot", "forgottenserver", "-e", "SELECT 1;"]
+      interval: 1s
+      timeout: 1s
+      retries: 60
+      start_period: 3s

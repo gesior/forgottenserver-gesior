@@ -1,0 +1,28 @@
+FROM ubuntu:24.04 AS build
+
+RUN apt update && \
+    apt install -yq cmake build-essential ninja-build \
+    libcrypto++-dev libfmt-dev liblua5.4-dev libmysqlclient-dev \
+    libboost-iostreams-dev libboost-json-dev libboost-locale-dev libboost-system-dev libpugixml-dev
+
+COPY cmake /usr/src/forgottenserver/cmake/
+COPY src /usr/src/forgottenserver/src/
+COPY CMakeLists.txt CMakePresets.json /usr/src/forgottenserver/
+WORKDIR /usr/src/forgottenserver
+RUN cmake --preset default && cmake --build --config Debug --preset default
+
+FROM ubuntu:24.04
+
+RUN apt update && \
+    apt install -yq cmake build-essential ninja-build \
+    libcrypto++-dev libfmt-dev liblua5.4-dev libmysqlclient-dev \
+    libboost-iostreams-dev libboost-json-dev libboost-locale-dev libboost-system-dev libpugixml-dev
+
+COPY --from=build /usr/src/forgottenserver/build/Debug/tfs /bin/tfs
+COPY data /srv/data/
+COPY LICENSE README.md *.dist config.lua *.sql key.pem /srv/
+
+EXPOSE 7171 7172 8080
+WORKDIR /srv
+VOLUME /srv
+ENTRYPOINT ["/bin/tfs"]

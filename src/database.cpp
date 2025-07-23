@@ -13,6 +13,26 @@ static tfs::detail::Mysql_ptr connectToDatabase(const bool retryIfError)
 {
 	bool isFirstAttemptToConnect = true;
 
+	std::cout << ">> Information about MySQL/MariaDB connector:" << std::endl;
+
+#ifdef MARIADB_VERSION_ID
+	std::cout << "   Connector type: MariaDB Connector/C" << std::endl;
+	std::cout << "   MariaDB version: " << MARIADB_VERSION_ID << std::endl;
+#ifdef MARIADB_PACKAGE_VERSION
+	std::cout << "   MariaDB package version: " << MARIADB_PACKAGE_VERSION << std::endl;
+#endif
+#elif defined(MYSQL_VERSION_ID)
+	std::cout << "   Connector type: MySQL Connector/C" << std::endl;
+	std::cout << "   MySQL : " << MYSQL_VERSION_ID << std::endl;
+#ifdef MYSQL_SERVER_VERSION
+	std::cout << "   MySQL server version: " << MYSQL_SERVER_VERSION << std::endl;
+#endif
+#else
+	std::cout << "   Connector type: unknown" << std::endl;
+#endif
+
+	std::cout << "   MySQL client version (runtime): " << mysql_get_client_info() << std::endl << std::endl;
+
 retry:
 	if (!isFirstAttemptToConnect) {
 		std::this_thread::sleep_for(std::chrono::seconds(1));
