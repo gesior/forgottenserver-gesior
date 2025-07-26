@@ -50,7 +50,7 @@ Tile* IOMap::createTile(Item*& ground, Item* item, uint16_t x, uint16_t y, uint8
 	return tile;
 }
 
-bool IOMap::loadMap(Map* map, const std::string& fileName)
+bool IOMap::loadMap(Map* map, const std::string& fileName, const Position& positionOffset)
 {
 	int64_t start = OTSYS_TIME();
 	try {
@@ -118,11 +118,11 @@ bool IOMap::loadMap(Map* map, const std::string& fileName)
 
 		for (auto& mapDataNode : mapNode.children) {
 			if (mapDataNode.type == OTBM_TILE_AREA) {
-				if (!parseTileArea(loader, mapDataNode, *map)) {
+				if (!parseTileArea(loader, mapDataNode, *map, positionOffset)) {
 					return false;
 				}
 			} else if (mapDataNode.type == OTBM_TOWNS) {
-				if (!parseTowns(loader, mapDataNode, *map)) {
+				if (!parseTowns(loader, mapDataNode, *map, positionOffset)) {
 					return false;
 				}
 			} else if (mapDataNode.type == OTBM_WAYPOINTS && headerVersion > 1) {
@@ -192,7 +192,7 @@ bool IOMap::parseMapDataAttributes(OTB::Loader& loader, const OTB::Node& mapNode
 	return true;
 }
 
-bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Map& map)
+bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Map& map, const Position& positionOffset)
 {
 	PropStream propStream;
 	if (!loader.getProps(tileAreaNode, propStream)) {
@@ -206,9 +206,9 @@ bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Ma
 		return false;
 	}
 
-	uint16_t base_x = area_coord.x;
-	uint16_t base_y = area_coord.y;
-	uint16_t z = area_coord.z;
+	uint16_t base_x = area_coord.x + positionOffset.x;
+	uint16_t base_y = area_coord.y + positionOffset.y;
+	uint16_t z = area_coord.z + positionOffset.z;
 
 	for (auto& tileNode : tileAreaNode.children) {
 		if (tileNode.type != OTBM_TILE && tileNode.type != OTBM_HOUSETILE) {
@@ -376,7 +376,7 @@ bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Ma
 	return true;
 }
 
-bool IOMap::parseTowns(OTB::Loader& loader, const OTB::Node& townsNode, Map& map)
+bool IOMap::parseTowns(OTB::Loader& loader, const OTB::Node& townsNode, Map& map, const Position& positionOffset)
 {
 	for (auto& townNode : townsNode.children) {
 		PropStream propStream;
@@ -416,7 +416,11 @@ bool IOMap::parseTowns(OTB::Loader& loader, const OTB::Node& townsNode, Map& map
 			return false;
 		}
 
-		town->setTemplePos(Position(town_coords.x, town_coords.y, town_coords.z));
+		town->setTemplePos(Position(
+			town_coords.x + positionOffset.x,
+			town_coords.y + positionOffset.y,
+			town_coords.z + positionOffset.z
+		));
 	}
 	return true;
 }

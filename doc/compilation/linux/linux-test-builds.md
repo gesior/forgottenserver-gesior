@@ -57,42 +57,42 @@ docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ub
 
 ### RelWithDebInfo
 
-RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=OFF, OTS_STATS=OFF:
-```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON  --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=OFF .
-```
-
-RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=OFF, OTS_STATS=ON:
-```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON  --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=ON .
-```
-
-RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=ON, OTS_STATS=OFF:
-```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON  --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=OFF .
-```
-
-RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=ON, OTS_STATS=ON:
-```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON  --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=ON .
-```
-
 RelWithDebInfo, LUAJIT=OFF, UNITY_BUILD=OFF, OTS_STATS=OFF:
 ```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF  --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=OFF .
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=OFF .
 ```
 
 RelWithDebInfo, LUAJIT=OFF, UNITY_BUILD=OFF, OTS_STATS=ON:
 ```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF  --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=ON .
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=ON .
 ```
 
 RelWithDebInfo, LUAJIT=OFF, UNITY_BUILD=ON, OTS_STATS=OFF:
 ```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF  --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=OFF .
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=OFF .
 ```
 
 RelWithDebInfo, LUAJIT=OFF, UNITY_BUILD=ON, OTS_STATS=ON:
 ```
-docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg  BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF  --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=ON .
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=OFF --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=ON .
+```
+
+RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=OFF, OTS_STATS=OFF:
+```
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=OFF .
+```
+
+RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=OFF, OTS_STATS=ON:
+```
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON --build-arg ENABLE_UNITY_BUILD=OFF --build-arg ENABLE_OTS_STATISTICS=ON .
+```
+
+RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=ON, OTS_STATS=OFF:
+```
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=OFF .
+```
+
+RelWithDebInfo, LUAJIT=ON, UNITY_BUILD=ON, OTS_STATS=ON:
+```
+docker build --progress=plain -f doc/compilation/linux/test-builds/Dockerfile_Ubuntu_24_04 --build-arg BUILD_TYPE=RelWithDebInfo --build-arg USE_LUAJIT=ON --build-arg ENABLE_UNITY_BUILD=ON --build-arg ENABLE_OTS_STATISTICS=ON .
 ```

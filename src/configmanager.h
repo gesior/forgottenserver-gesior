@@ -54,6 +54,7 @@ class ConfigManager
 			BINARY_PLAYER_ITEMS,
 			ALLOW_OTC_PROXY,
 			ALLOW_HAPROXY,
+			ENABLE_LUA_DEBUG_COMMAND,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};

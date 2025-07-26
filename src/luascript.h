@@ -237,6 +237,9 @@ class LuaScriptInterface
 		bool callFunction(int params);
 		void callVoidFunction(int params);
 
+		static void loadGlobalStorages();
+		static bool saveGlobalStorages();
+
 		//push/pop common structures
 		static void pushThing(lua_State* L, Thing* thing);
 		static void pushVariant(lua_State* L, const LuaVariant& var);
@@ -556,6 +559,8 @@ class LuaScriptInterface
 		static int luaTablePack(lua_State* L);
 
 		// Game
+		static int luaGameGetStorageValue(lua_State* L);
+		static int luaGameSetStorageValue(lua_State* L);
 		static int luaGameGetSpectators(lua_State* L);
 		static int luaGameGetPlayers(lua_State* L);
 		static int luaGameLoadMap(lua_State* L);
