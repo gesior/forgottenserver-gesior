@@ -36,7 +36,7 @@ class Spawn
 		uint32_t getInterval() const {
 			return interval;
 		}
-		void startup();
+		void startup(bool started = false);
 
 		void startSpawnCheck();
 		void stopEvent();
@@ -59,8 +59,8 @@ class Spawn
 		uint32_t checkSpawnEvent = 0;
 
 		static bool findPlayer(const Position& pos);
-		bool spawnMonster(uint32_t spawnId, spawnBlock_t sb, bool startup = false);
-		bool spawnMonster(uint32_t spawnId, MonsterType* mType, const Position& pos, Direction dir, bool startup = false);
+		bool spawnMonster(uint32_t spawnId, spawnBlock_t sb, bool startup = false, bool started = false);
+		bool spawnMonster(uint32_t spawnId, MonsterType* mType, const Position& pos, Direction dir, bool startup = false, bool started = false);
 		void checkSpawn();
 };
 
@@ -69,7 +69,7 @@ class Spawns
 	public:
 		static bool isInZone(const Position& centerPos, int32_t radius, const Position& pos);
 
-		bool loadFromXml(const std::string& filename);
+		bool loadFromXml(const std::string& filename, const Position& positionOffset);
 		void startup();
 		void clear();
 
@@ -80,6 +80,7 @@ class Spawns
 	private:
 		std::forward_list<Npc*> npcList;
 		std::forward_list<Spawn> spawnList;
+		std::vector<Spawn*> mapPartSpawns;
 		std::string filename;
 		bool loaded = false;
 		bool started = false;
