@@ -170,18 +170,20 @@ local function creatureSayCallback(cid, type, msg)
 			if #parts == 2 then
 				-- Immediate topicList.TRANSFER_PLAYER_GOLD simulation
 				count[cid] = getMoneyCount(parts[2])
+				if not isValidMoney(count[cid]) then
+					npcHandler:say("Please tell me the amount of gold you would like to transfer.", cid)
+					npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_GOLD
+					return true
+				end
+
 				if player:getBankBalance() < count[cid] then
 					npcHandler:say("There is not enough gold in your account.", cid)
 					npcHandler.topic[cid] = topicList.NONE
 					return true
 				end
-				if isValidMoney(count[cid]) then
-					npcHandler:say("Who would you like transfer " .. count[cid] .. " gold to?", cid)
-					npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_WHO
-				else
-					npcHandler:say("There is not enough gold in your account.", cid)
-					npcHandler.topic[cid] = topicList.NONE
-				end
+
+				npcHandler:say("Who would you like transfer " .. count[cid] .. " gold to?", cid)
+				npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_WHO
 			else
 				npcHandler:say("Please tell me the amount of gold you would like to transfer.", cid)
 				npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_GOLD
@@ -200,61 +202,31 @@ local function creatureSayCallback(cid, type, msg)
 
 			-- Immediate topicList.TRANSFER_PLAYER_GOLD simulation
 			count[cid] = getMoneyCount(parts[2])
+			if not isValidMoney(count[cid]) then
+				npcHandler:say("Please tell me the amount of gold you would like to transfer.", cid)
+				npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_GOLD
+				return true
+			end
+
 			if player:getBankBalance() < count[cid] then
 				npcHandler:say("There is not enough gold in your account.", cid)
 				npcHandler.topic[cid] = topicList.NONE
 				return true
 			end
-			if isValidMoney(count[cid]) then
-				-- Immediate topicList.TRANSFER_PLAYER_WHO simulation
-				transfer[cid] = getPlayerDatabaseInfo(receiver)
-				if player:getName() == transfer[cid].name then
-					npcHandler:say("Why would you want to transfer money to yourself? You already have it!", cid)
-					npcHandler.topic[cid] = topicList.NONE
-					return true
-				end
-
-				if transfer[cid] then
-					if transfer[cid].vocation == VOCATION_NONE and Player(cid):getVocation() ~= 0 then
-						npcHandler:say("I'm afraid this character only holds a junior account at our bank. Do not worry, though. Once he has chosen his vocation, his account will be upgraded.", cid)
-						npcHandler.topic[cid] = topicList.NONE
-						return true
-					end
-					npcHandler:say("So you would like to transfer " .. count[cid] .. " gold to " .. transfer[cid].name .. "?", cid)
-					npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_CONSENT
-				else
-					npcHandler:say("This player does not exist.", cid)
-					npcHandler.topic[cid] = topicList.NONE
-				end
-				-- end topicList.TRANSFER_PLAYER_WHO
-			else
-				npcHandler:say("There is not enough gold in your account.", cid)
+			-- Immediate topicList.TRANSFER_PLAYER_WHO simulation
+			transfer[cid] = getPlayerDatabaseInfo(receiver)
+			if not transfer[cid] then
+				npcHandler:say("Hmm, my ledgers have no records of anyone with the name " .. receiver .. ". Please ensure the name is correct.", cid)
 				npcHandler.topic[cid] = topicList.NONE
+				return true
 			end
-		end
-	elseif npcHandler.topic[cid] == topicList.TRANSFER_PLAYER_GOLD then
-		count[cid] = getMoneyCount(msg)
-		if player:getBankBalance() < count[cid] then
-			npcHandler:say("There is not enough gold in your account.", cid)
-			npcHandler.topic[cid] = topicList.NONE
-			return true
-		end
-		if isValidMoney(count[cid]) then
-			npcHandler:say("Who would you like transfer " .. count[cid] .. " gold to?", cid)
-			npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_WHO
-		else
-			npcHandler:say("There is not enough gold in your account.", cid)
-			npcHandler.topic[cid] = topicList.NONE
-		end
-	elseif npcHandler.topic[cid] == topicList.TRANSFER_PLAYER_WHO then
-		transfer[cid] = getPlayerDatabaseInfo(msg)
-		if player:getName() == transfer[cid].name then
-			npcHandler:say("Fill in this field with person who receives your gold!", cid)
-			npcHandler.topic[cid] = topicList.NONE
-			return true
-		end
 
-		if transfer[cid] then
+			if player:getName() == transfer[cid].name then
+				npcHandler:say("Why would you want to transfer money to yourself? You already have it!", cid)
+				npcHandler.topic[cid] = topicList.NONE
+				return true
+			end
+
 			if transfer[cid].vocation == VOCATION_NONE and Player(cid):getVocation() ~= 0 then
 				npcHandler:say("I'm afraid this character only holds a junior account at our bank. Do not worry, though. Once he has chosen his vocation, his account will be upgraded.", cid)
 				npcHandler.topic[cid] = topicList.NONE
@@ -262,10 +234,44 @@ local function creatureSayCallback(cid, type, msg)
 			end
 			npcHandler:say("So you would like to transfer " .. count[cid] .. " gold to " .. transfer[cid].name .. "?", cid)
 			npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_CONSENT
-		else
-			npcHandler:say("This player does not exist.", cid)
-			npcHandler.topic[cid] = topicList.NONE
+			-- end topicList.TRANSFER_PLAYER_WHO
 		end
+	elseif npcHandler.topic[cid] == topicList.TRANSFER_PLAYER_GOLD then
+		count[cid] = getMoneyCount(msg)
+		if not isValidMoney(count[cid]) then
+			npcHandler:say("Please tell me the amount of gold you would like to transfer.", cid)
+			return true
+		end
+
+		if player:getBankBalance() < count[cid] then
+			npcHandler:say("There is not enough gold in your account.", cid)
+			npcHandler.topic[cid] = topicList.NONE
+			return true
+		end
+
+		npcHandler:say("Who would you like transfer " .. count[cid] .. " gold to?", cid)
+		npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_WHO
+	elseif npcHandler.topic[cid] == topicList.TRANSFER_PLAYER_WHO then
+		transfer[cid] = getPlayerDatabaseInfo(msg)
+		if not transfer[cid] then
+			npcHandler:say("Hmm, my ledgers have no records of anyone with the name " .. msg .. ". Please ensure the name is correct.", cid)
+			npcHandler.topic[cid] = topicList.NONE
+			return true
+		end
+
+		if player:getName() == transfer[cid].name then
+			npcHandler:say("Fill in this field with person who receives your gold!", cid)
+			npcHandler.topic[cid] = topicList.NONE
+			return true
+		end
+
+		if transfer[cid].vocation == VOCATION_NONE and Player(cid):getVocation() ~= 0 then
+			npcHandler:say("I'm afraid this character only holds a junior account at our bank. Do not worry, though. Once he has chosen his vocation, his account will be upgraded.", cid)
+			npcHandler.topic[cid] = topicList.NONE
+			return true
+		end
+		npcHandler:say("So you would like to transfer " .. count[cid] .. " gold to " .. transfer[cid].name .. "?", cid)
+		npcHandler.topic[cid] = topicList.TRANSFER_PLAYER_CONSENT
 	elseif npcHandler.topic[cid] == topicList.TRANSFER_PLAYER_CONSENT then
 		if msgcontains(msg, "yes") then
 			if not player:transferMoneyTo(transfer[cid], count[cid]) then
