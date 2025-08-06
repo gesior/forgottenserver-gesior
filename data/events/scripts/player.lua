@@ -215,3 +215,9 @@ function Player:onWrapItem(item)
 		end
 	end
 end
+
+function Player:onUseWeapon(item)
+	if hasEventCallback(EVENT_CALLBACK_ONUSEWEAPON) then
+		EventCallback(EVENT_CALLBACK_ONUSEWEAPON, self, item)
+	end
+end

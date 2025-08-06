@@ -3271,10 +3271,12 @@ void Player::doAttacking(uint32_t)
 
 		if (weapon) {
 			if (!weapon->interruptSwing()) {
+				g_events->eventPlayerOnUseWeapon(this, tool);
 				result = weapon->useWeapon(this, tool, attackedCreature);
 			} else if (!classicSpeed && !canDoAction()) {
 				delay = getNextActionTime();
 			} else {
+				g_events->eventPlayerOnUseWeapon(this, tool);
 				result = weapon->useWeapon(this, tool, attackedCreature);
 			}
 		} else {
