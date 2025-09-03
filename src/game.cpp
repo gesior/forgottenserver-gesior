@@ -114,7 +114,7 @@ void Game::setGameState(GameState_t newState)
 			loadMotdNum();
 			loadPlayersRecord();
 			loadAccountStorageValues();
-			LuaScriptInterface::loadGlobalStorages();
+			loadGlobalStorages();
 
 			g_globalEvents->startup();
 			break;
@@ -184,7 +184,10 @@ void Game::saveGameState()
 	}
 
 	Map::save();
-	LuaScriptInterface::saveGlobalStorages();
+
+	if (!saveGlobalStorages()) {
+		std::cout << "[Error - Game::saveGameState] Failed to save global storage values." << std::endl;
+	}
 
 	g_databaseTasks.flush();
 
@@ -5831,4 +5834,59 @@ bool Game::reload(ReloadTypes_t reloadType)
 		}
 	}
 	return true;
+}
+
+void Game::loadGlobalStorages()
+{
+	Database& db = Database::getInstance();
+	DBResult_ptr result = db.storeQuery("SELECT `key`, `value` FROM `global_storage`");
+	if (result) {
+		do {
+			globalStorageMap[result->getNumber<uint32_t>("key")] = result->getNumber<int64_t>("value");
+		} while (result->next());
+	}
+}
+
+bool Game::saveGlobalStorages() const
+{
+	Database& db = Database::getInstance();
+
+	if (!db.executeQuery("DELETE FROM `global_storage`")) {
+		return false;
+	}
+
+	DBInsert storageQuery("INSERT INTO `global_storage` (`key`, `value`) VALUES ");
+
+	for (const auto& it : globalStorageMap) {
+		if (!storageQuery.addRow(fmt::format("{:d}, {:d}", it.first, it.second))) {
+			return false;
+		}
+	}
+
+	if (!storageQuery.execute()) {
+		return false;
+	}
+
+	return true;
+}
+
+int64_t Game::getStorageValue(const uint32_t key, const int64_t defaultValue /*= -1*/) const
+{
+	const auto it = globalStorageMap.find(key);
+	if(it == globalStorageMap.end())
+	{
+		return defaultValue;
+	}
+
+	return it->second;
+}
+
+void Game::setStorageValue(const uint32_t key, const int64_t value)
+{
+	if (value == -1) {
+		globalStorageMap.erase(key);
+		return;
+	}
+
+	globalStorageMap[key] = value;
 }

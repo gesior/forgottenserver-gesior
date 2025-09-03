@@ -489,6 +489,11 @@ class Game
 
 		bool reload(ReloadTypes_t reloadType);
 
+		void loadGlobalStorages();
+		bool saveGlobalStorages() const;
+		int64_t getStorageValue(uint32_t key, int64_t defaultValue = -1) const;
+		void setStorageValue(uint32_t key, int64_t value);
+
 		Groups groups;
 		Map map;
 		Mounts mounts;
@@ -537,6 +542,8 @@ class Game
 
 		std::map<uint32_t, Npc*> npcs;
 		std::map<uint32_t, Monster*> monsters;
+
+		std::map<uint32_t, int64_t> globalStorageMap;
 
 		//list of items that are in trading state, mapped to the player
 		std::map<Item*, uint32_t> tradeItems;
