@@ -30,6 +30,7 @@ function onSay(player, words, param)
 	end
 
 	player:sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, string.format("Key %d value is %d", key, Game.getStorageValue(key)))
+	player:sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, string.format("Key %d value with default 0 is %d", key, Game.getStorageValue(key, 0)))
 
 	return false
 end

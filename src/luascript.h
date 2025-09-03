@@ -237,9 +237,6 @@ class LuaScriptInterface
 		bool callFunction(int params);
 		void callVoidFunction(int params);
 
-		static void loadGlobalStorages();
-		static bool saveGlobalStorages();
-
 		//push/pop common structures
 		static void pushThing(lua_State* L, Thing* thing);
 		static void pushVariant(lua_State* L, const LuaVariant& var);
