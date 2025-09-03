@@ -32,16 +32,16 @@ void Stats::threadMain()
 		SLOW_EXECUTION_TIME = g_config.getNumber(ConfigManager::STATS_SLOW_LOG_TIME) * 1000000;
 		VERY_SLOW_EXECUTION_TIME = g_config.getNumber(ConfigManager::STATS_VERY_SLOW_LOG_TIME) * 1000000;
 
-		std::vector<std::forward_list < Task * >> tasks;
+		std::vector<std::forward_list<Task*>> tasks;
 		for (auto& dispatcher : dispatchers) {
 			tasks.push_back(std::move(dispatcher.queue));
 			dispatcher.queue.clear();
 		}
-		std::forward_list < Stat * > lua_stats(std::move(lua.queue));
+		std::forward_list<Stat*> lua_stats(std::move(lua.queue));
 		lua.queue.clear();
-		std::forward_list < Stat * > sql_stats(std::move(sql.queue));
+		std::forward_list<Stat*> sql_stats(std::move(sql.queue));
 		sql.queue.clear();
-		std::forward_list < Stat * > special_stats(std::move(special.queue));
+		std::forward_list<Stat*> special_stats(std::move(special.queue));
 		special.queue.clear();
 		taskLockUnique.unlock();
 
@@ -124,7 +124,7 @@ void Stats::addSpecialStats(Stat* stats)
 	special.queue.push_front(stats);
 }
 
-void Stats::parseDispatchersQueue(std::vector<std::forward_list < Task * >> queues)
+void Stats::parseDispatchersQueue(std::vector<std::forward_list<Task*>> queues)
 {
 	int i = 0;
 	for (auto& dispatcher : dispatchers) {
@@ -142,7 +142,7 @@ void Stats::parseDispatchersQueue(std::vector<std::forward_list < Task * >> queu
 	}
 }
 
-void Stats::parseLuaQueue(std::forward_list <Stat*>& queue)
+void Stats::parseLuaQueue(std::forward_list<Stat*>& queue)
 {
 	for (Stat* stats : queue) {
 		auto it = lua.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
@@ -158,7 +158,7 @@ void Stats::parseLuaQueue(std::forward_list <Stat*>& queue)
 	}
 }
 
-void Stats::parseSqlQueue(std::forward_list <Stat*>& queue)
+void Stats::parseSqlQueue(std::forward_list<Stat*>& queue)
 {
 	for (Stat* stats : queue) {
 		auto it = sql.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
@@ -174,7 +174,7 @@ void Stats::parseSqlQueue(std::forward_list <Stat*>& queue)
 	}
 }
 
-void Stats::parseSpecialQueue(std::forward_list <Stat*>& queue)
+void Stats::parseSpecialQueue(std::forward_list<Stat*>& queue)
 {
 	for (Stat* stats : queue) {
 		auto it = special.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
