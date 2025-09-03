@@ -16,6 +16,13 @@ if (BUILD_TESTING)
     list(APPEND VCPKG_MANIFEST_FEATURES "unit-tests")
 endif()
 
+option(USE_LUAJIT "Use LuaJIT" ON)
+if (USE_LUAJIT)
+    list(APPEND VCPKG_MANIFEST_FEATURES "luajit")
+else()
+    list(APPEND VCPKG_MANIFEST_FEATURES "lua")
+endif()
+
 project(tfs CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
