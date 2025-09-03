@@ -114,6 +114,7 @@ void Game::setGameState(GameState_t newState)
 			loadMotdNum();
 			loadPlayersRecord();
 			loadAccountStorageValues();
+			LuaScriptInterface::loadGlobalStorages();
 
 			g_globalEvents->startup();
 			break;
@@ -183,6 +184,7 @@ void Game::saveGameState()
 	}
 
 	Map::save();
+	LuaScriptInterface::saveGlobalStorages();
 
 	g_databaseTasks.flush();
 
@@ -193,12 +195,13 @@ void Game::saveGameState()
 
 bool Game::loadMainMap(const std::string& filename)
 {
-	return map.loadMap("data/world/" + filename + ".otbm", true);
+	Position positionOffset;
+	return map.loadMap("data/world/" + filename + ".otbm", true, positionOffset);
 }
 
-void Game::loadMap(const std::string& path)
+void Game::loadMap(const std::string& path, const Position& positionOffset)
 {
-	map.loadMap(path, false);
+	map.loadMap(path, false, positionOffset);
 }
 
 Cylinder* Game::internalGetCylinder(Player* player, const Position& pos) const

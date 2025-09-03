@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <talkactions>
 	<!-- commands -->
+	<talkaction words="/lua;!lua" separator=" " script="lua_debug.lua" />
 	<talkaction words="/duration" separator=" " script="item_duration.lua" />
+	<talkaction words="/globalstorage" separator=" " script="global_storage.lua" />
 	<talkaction words="/attr" separator=" " script="attributes.lua" />
 	<talkaction words="/ban" separator=" " script="ban.lua" />
 	<talkaction words="/ipban" separator=" " script="ipban.lua" />
