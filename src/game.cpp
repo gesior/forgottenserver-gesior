@@ -4622,10 +4622,17 @@ void Game::checkDecay()
 		it = decayMap.erase(it);
 	}
 
+	std::map<uint16_t, uint64_t> decayedItemsCounter;
 	for (auto item : itemsToDecay) {
+		decayedItemsCounter[item->getID()]++;
 		stopDecay(item);
 		if (item->canDecay()) {
 			internalDecayItem(item);
+		}
+	}
+	if (tooManyItemsToDecay) {
+		for (auto& itemData : decayedItemsCounter) {
+			std::cout << "[Warning - Game::checkDecay] Item ID: " << itemData.first << " count: " << itemData.second << std::endl;
 		}
 	}
 
