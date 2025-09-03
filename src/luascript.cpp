@@ -458,7 +458,7 @@ const std::string& LuaScriptInterface::getAddEventStackTracebackHash(const std::
 	auto *hash = new std::string(fmt::format(
 		"LuaAddEvent-{:d}",
 		adlerChecksum(
-			reinterpret_cast<const uint8_t *>(addEventStackBacktrace.c_str()),
+			reinterpret_cast<const uint8_t*>(addEventStackBacktrace.c_str()),
 			addEventStackBacktrace.length()
 		)
 	));
@@ -11756,7 +11756,7 @@ int LuaScriptInterface::luaHouseGetItems(lua_State* L)
 	for (Tile* tile : tiles) {
 		TileItemVector* itemVector = tile->getItemList();
 		if(itemVector) {
-			for(Item* item : *itemVector) {
+			for (Item* item : *itemVector) {
 				pushUserdata<Item>(L, item);
 				setItemMetatable(L, -1, item);
 				lua_rawseti(L, -2, ++index);

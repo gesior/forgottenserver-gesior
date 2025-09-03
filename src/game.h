@@ -445,7 +445,7 @@ class Game
 
 		void startDecay(Item* item);
 		void stopDecay(Item* item);
-		void updateDuration(Item *item);
+		void updateDuration(Item* item);
 
 		int16_t getWorldTime() { return worldTime; }
 		void updateWorldTime();
@@ -531,8 +531,8 @@ class Game
 		std::map<uint32_t, uint32_t> stages;
 		std::unordered_map<uint32_t, std::unordered_map<uint32_t, int32_t>> accountStorageMap;
 
-		std::map<int64_t, std::map<Item *, Item *>> decayMap;
-		std::map<Item *, int64_t> reverseItemDecayMap;
+		std::map<int64_t, std::map<Item*, Item*>> decayMap;
+		std::map<Item*, int64_t> reverseItemDecayMap;
 		std::list<Creature*> checkCreatureLists[EVENT_CREATURECOUNT];
 
 		std::vector<Creature*> ToReleaseCreatures;

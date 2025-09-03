@@ -873,7 +873,7 @@ bool IOLoginData::savePlayer(Player* player)
 		DBInsert itemsQuery("INSERT INTO `player_items_binary` (`player_id`, `items`) VALUES ");
 
 		for (int32_t slotId = CONST_SLOT_FIRST; slotId <= CONST_SLOT_LAST; ++slotId) {
-			Item *item = player->inventory[slotId];
+			Item* item = player->inventory[slotId];
 			if (item) {
 				itemList.emplace_back(slotId, item);
 			}

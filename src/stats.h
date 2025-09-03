@@ -45,22 +45,22 @@ public:
 	std::atomic<uint32_t> playersOnline;
 
 private:
-	void parseDispatchersQueue(std::vector<std::forward_list < Task * >> queues);
-	void parseLuaQueue(std::forward_list <Stat*>& queue);
-	void parseSqlQueue(std::forward_list <Stat*>& queue);
-	void parseSpecialQueue(std::forward_list <Stat*>& queue);
+	void parseDispatchersQueue(std::vector<std::forward_list<Task*>> queues);
+	void parseLuaQueue(std::forward_list<Stat*>& queue);
+	void parseSqlQueue(std::forward_list<Stat*>& queue);
+	void parseSpecialQueue(std::forward_list<Stat*>& queue);
 	static void writeSlowInfo(const std::string& file, uint64_t executionTime, const std::string& description, const std::string& extraDescription);
 	static void writeStats(const std::string& file, const statsMap& stats, const std::string& extraInfo = "");
 
 	std::mutex statsLock;
 	struct {
-		std::forward_list <Task*> queue;
+		std::forward_list<Task*> queue;
 		statsMap stats;
 		std::atomic<uint64_t> waitTime;
 		int64_t lastDump;
 	} dispatchers[3];
 	struct {
-		std::forward_list <Stat*> queue;
+		std::forward_list<Stat*> queue;
 		statsMap stats;
 		int64_t lastDump;
 	} lua, sql, special;
