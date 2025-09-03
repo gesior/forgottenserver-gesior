@@ -33,7 +33,7 @@ bool Scripts::loadScripts(std::string folderName, bool isLib, bool reload)
 	fs::recursive_directory_iterator endit;
 	std::vector<fs::path> v;
 	std::string disable = ("#");
-	for(fs::recursive_directory_iterator it(dir); it != endit; ++it) {
+	for (fs::recursive_directory_iterator it(dir); it != endit; ++it) {
 		auto fn = it->path().parent_path().filename();
 		if ((fn == "lib" && !isLib) || fn == "events") {
 			continue;

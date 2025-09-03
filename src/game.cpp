@@ -4506,7 +4506,7 @@ bool Game::saveAccountStorageValues() const
 	return transaction.commit();
 }
 
-void Game::startDecay(Item *item)
+void Game::startDecay(Item* item)
 {
 	if (!item || !item->canDecay()) {
 		return;
@@ -4527,7 +4527,7 @@ void Game::startDecay(Item *item)
 	item->incrementReferenceCounter();
 }
 
-void Game::stopDecay(Item *item)
+void Game::stopDecay(Item* item)
 {
 	if (!item) {
 		return;
@@ -4550,7 +4550,7 @@ void Game::stopDecay(Item *item)
 	ReleaseItem(item);
 }
 
-void Game::updateDuration(Item *item)
+void Game::updateDuration(Item* item)
 {
 	if (!item) {
 		return;
@@ -4605,7 +4605,7 @@ void Game::checkDecay()
 			break;
 		}
 
-		for(auto itemData : it->second) {
+		for (auto itemData : it->second) {
 			if (itemsToDecay.size() == itemsPerEventLimit) {
 				tooManyItemsToDecay = true;
 				break;
@@ -4622,7 +4622,7 @@ void Game::checkDecay()
 		it = decayMap.erase(it);
 	}
 
-	for(auto item : itemsToDecay) {
+	for (auto item : itemsToDecay) {
 		stopDecay(item);
 		if (item->canDecay()) {
 			internalDecayItem(item);
