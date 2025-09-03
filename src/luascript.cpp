@@ -4279,7 +4279,7 @@ int LuaScriptInterface::luaTablePack(lua_State* L)
 // Game
 int32_t LuaScriptInterface::luaGameGetStorageValue(lua_State* L)
 {
-	// Game.getStorageValue(key, defaultValue)
+	// Game.getStorageValue(key[, defaultValue])
 	const auto key = getNumber<uint32_t>(L, 1);
 	const auto defaultValue = getNumber<int64_t>(L, 2, -1);
 	lua_pushnumber(L, g_game.getStorageValue(key, defaultValue));
