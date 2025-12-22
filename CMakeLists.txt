@@ -39,6 +39,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     add_compile_options(-Wimplicit-fallthrough -Wmove)
 endif ()
 
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+
 # Find packages.
 find_package(OpenSSL 3.0.0 REQUIRED COMPONENTS Crypto)
 
@@ -80,7 +82,7 @@ set(BOOST_REQUIRED_COMPONENTS system iostreams locale)
 if (BUILD_TESTING)
     list(APPEND BOOST_REQUIRED_COMPONENTS unit_test_framework)
 endif ()
-find_package(Boost 1.66.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
+find_package(Boost 1.71.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PUGIXML_INCLUDE_DIR})
 
