@@ -103,6 +103,7 @@ class Database
 		 * @return quoted string
 		 */
 		std::string escapeBlob(const char* s, uint32_t length) const;
+		[[nodiscard]] std::string quoteIdentifier(std::string_view name) const;
 
 		/**
 		 * Retrieve id of last inserted row

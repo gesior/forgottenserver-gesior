@@ -17,7 +17,7 @@ bool DatabaseManager::optimizeTables()
 	if (db.getBackend() == DatabaseBackend::Postgres) {
 		result = db.storeQuery(fmt::format("SELECT table_name FROM information_schema.tables WHERE table_schema = {:s} AND table_type = 'BASE TABLE'", db.escapeString(g_config.getString(ConfigManager::POSTGRES_SCHEMA))));
 	} else {
-		result = db.storeQuery(fmt::format("SELECT `TABLE_NAME` FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = {:s} AND `DATA_FREE` > 0", db.escapeString(g_config.getString(ConfigManager::MYSQL_DB))));
+		result = db.storeQuery(fmt::format("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = {:s} AND DATA_FREE > 0", db.escapeString(g_config.getString(ConfigManager::MYSQL_DB))));
 	}
 	if (!result) {
 		return false;
@@ -32,7 +32,7 @@ bool DatabaseManager::optimizeTables()
 			const std::string& schema = g_config.getString(ConfigManager::POSTGRES_SCHEMA);
 			success = db.executeQuery(fmt::format("VACUUM (ANALYZE) \"{:s}\".\"{:s}\"", schema, tableName));
 		} else {
-			success = db.executeQuery(fmt::format("OPTIMIZE TABLE `{:s}`", tableName));
+			success = db.executeQuery(fmt::format("OPTIMIZE TABLE {:s}", tableName));
 		}
 
 		if (success) {
@@ -50,7 +50,7 @@ bool DatabaseManager::tableExists(const std::string& tableName)
 	if (db.getBackend() == DatabaseBackend::Postgres) {
 		return db.storeQuery(fmt::format("SELECT table_name FROM information_schema.tables WHERE table_schema = {:s} AND table_name = {:s} LIMIT 1", db.escapeString(g_config.getString(ConfigManager::POSTGRES_SCHEMA)), db.escapeString(tableName))).get() != nullptr;
 	}
-	return db.storeQuery(fmt::format("SELECT `TABLE_NAME` FROM `information_schema`.`tables` WHERE `TABLE_SCHEMA` = {:s} AND `TABLE_NAME` = {:s} LIMIT 1", db.escapeString(g_config.getString(ConfigManager::MYSQL_DB)), db.escapeString(tableName))).get() != nullptr;
+	return db.storeQuery(fmt::format("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = {:s} AND TABLE_NAME = {:s} LIMIT 1", db.escapeString(g_config.getString(ConfigManager::MYSQL_DB)), db.escapeString(tableName))).get() != nullptr;
 }
 
 bool DatabaseManager::isDatabaseSetup()
@@ -59,7 +59,7 @@ bool DatabaseManager::isDatabaseSetup()
 	if (db.getBackend() == DatabaseBackend::Postgres) {
 		return db.storeQuery(fmt::format("SELECT table_name FROM information_schema.tables WHERE table_schema = {:s} LIMIT 1", db.escapeString(g_config.getString(ConfigManager::POSTGRES_SCHEMA)))).get() != nullptr;
 	}
-	return db.storeQuery(fmt::format("SELECT `TABLE_NAME` FROM `information_schema`.`tables` WHERE `TABLE_SCHEMA` = {:s}", db.escapeString(g_config.getString(ConfigManager::MYSQL_DB)))).get() != nullptr;
+	return db.storeQuery(fmt::format("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = {:s}", db.escapeString(g_config.getString(ConfigManager::MYSQL_DB)))).get() != nullptr;
 }
 
 int32_t DatabaseManager::getDatabaseVersion()
@@ -69,7 +69,7 @@ int32_t DatabaseManager::getDatabaseVersion()
 		if (db.getBackend() == DatabaseBackend::Postgres) {
 			db.executeQuery("CREATE TABLE server_config (config VARCHAR(50) PRIMARY KEY, value VARCHAR(256) NOT NULL DEFAULT '')");
 		} else {
-			db.executeQuery("CREATE TABLE `server_config` (`config` VARCHAR(50) NOT NULL, `value` VARCHAR(256) NOT NULL DEFAULT '', UNIQUE(`config`)) ENGINE = InnoDB");
+			db.executeQuery("CREATE TABLE server_config (config VARCHAR(50) NOT NULL, value VARCHAR(256) NOT NULL DEFAULT '', UNIQUE(config)) ENGINE = InnoDB");
 		}
 		db.executeQuery("INSERT INTO server_config VALUES ('db_version', 0)");
 		return 0;
@@ -138,8 +138,9 @@ void DatabaseManager::updateDatabase()
 bool DatabaseManager::getDatabaseConfig(const std::string& config, int32_t& value)
 {
 	Database& db = Database::getInstance();
+	const std::string valueColumn = db.quoteIdentifier("value");
 
-	DBResult_ptr result = db.storeQuery(fmt::format("SELECT value FROM server_config WHERE config = {:s}", db.escapeString(config)));
+	DBResult_ptr result = db.storeQuery(fmt::format("SELECT {:s} FROM server_config WHERE config = {:s}", valueColumn, db.escapeString(config)));
 	if (!result) {
 		return false;
 	}
@@ -151,12 +152,13 @@ bool DatabaseManager::getDatabaseConfig(const std::string& config, int32_t& valu
 void DatabaseManager::registerDatabaseConfig(const std::string& config, int32_t value)
 {
 	Database& db = Database::getInstance();
+	const std::string valueColumn = db.quoteIdentifier("value");
 
 	int32_t tmp;
 
 	if (!getDatabaseConfig(config, tmp)) {
 		db.executeQuery(fmt::format("INSERT INTO server_config VALUES ({:s}, '{:d}')", db.escapeString(config), value));
 	} else {
-		db.executeQuery(fmt::format("UPDATE server_config SET value = '{:d}' WHERE config = {:s}", value, db.escapeString(config)));
+		db.executeQuery(fmt::format("UPDATE server_config SET {:s} = '{:d}' WHERE config = {:s}", valueColumn, value, db.escapeString(config)));
 	}
 }

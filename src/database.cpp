@@ -154,13 +154,6 @@ static bool isPostgresConnectionBad(const tfs::detail::PgConn_ptr& handle)
 	return !handle || PQstatus(handle.get()) != CONNECTION_OK;
 }
 
-static std::string normalizeQueryForPostgres(std::string_view query)
-{
-	std::string normalized{query};
-	std::replace(normalized.begin(), normalized.end(), '`', '"');
-	return normalized;
-}
-
 static bool executeQuery(tfs::detail::Mysql_ptr& handle, std::string_view query, const bool retryIfLostConnection)
 {
 	while (mysql_real_query(handle.get(), query.data(), query.length()) != 0) {
@@ -177,7 +170,7 @@ static bool executeQuery(tfs::detail::Mysql_ptr& handle, std::string_view query,
 
 static bool executeQuery(tfs::detail::PgConn_ptr& handle, std::string_view query, const bool retryIfLostConnection)
 {
-	std::string queryString = normalizeQueryForPostgres(query);
+	const std::string queryString{query};
 	while (true) {
 		tfs::detail::PgResult_ptr result{PQexec(handle.get(), queryString.c_str())};
 		if (result && (PQresultStatus(result.get()) == PGRES_COMMAND_OK || PQresultStatus(result.get()) == PGRES_TUPLES_OK)) {
@@ -293,10 +286,10 @@ DBResult_ptr Database::storeQuery(std::string_view query)
 	if (backend == DatabaseBackend::Postgres) {
 		retry:
 		{
-			std::string normalizedQuery = normalizeQueryForPostgres(query);
-			tfs::detail::PgResult_ptr res{PQexec(pgHandle.get(), normalizedQuery.c_str())};
+			const std::string queryString{query};
+			tfs::detail::PgResult_ptr res{PQexec(pgHandle.get(), queryString.c_str())};
 			if (!res || PQresultStatus(res.get()) != PGRES_TUPLES_OK) {
-				std::cout << "[Error - PQexec] Query: " << normalizedQuery << std::endl
+				std::cout << "[Error - PQexec] Query: " << queryString << std::endl
 						  << "Message: " << PQerrorMessage(pgHandle.get()) << std::endl;
 				if (!retryQueries || !isPostgresConnectionBad(pgHandle)) {
 					return nullptr;
@@ -366,6 +359,26 @@ std::string Database::escapeString(std::string_view s) const
 	}
 
 	return escapeBlob(s.data(), s.length());
+}
+
+std::string Database::quoteIdentifier(std::string_view name) const
+{
+	std::string escaped{name};
+	if (backend == DatabaseBackend::Postgres) {
+		size_t pos = 0;
+		while ((pos = escaped.find('"', pos)) != std::string::npos) {
+			escaped.insert(pos, 1, '"');
+			pos += 2;
+		}
+		return fmt::format("\"{:s}\"", escaped);
+	}
+
+	size_t pos = 0;
+	while ((pos = escaped.find('`', pos)) != std::string::npos) {
+		escaped.insert(pos, 1, '`');
+		pos += 2;
+	}
+	return fmt::format("`{:s}`", escaped);
 }
 
 std::string Database::escapeBlob(const char* s, uint32_t length) const

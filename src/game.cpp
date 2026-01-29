@@ -4464,9 +4464,11 @@ int32_t Game::getAccountStorageValue(const uint32_t accountId, const uint32_t ke
 void Game::loadAccountStorageValues()
 {
 	Database& db = Database::getInstance();
+	const std::string keyColumn = db.quoteIdentifier("key");
+	const std::string valueColumn = db.quoteIdentifier("value");
 
 	DBResult_ptr result;
-	if ((result = db.storeQuery("SELECT `account_id`, `key`, `value` FROM `account_storage`"))) {
+	if ((result = db.storeQuery(fmt::format("SELECT account_id, {:s}, {:s} FROM account_storage", keyColumn, valueColumn)))) {
 		do {
 			g_game.setAccountStorageValue(result->getNumber<uint32_t>("account_id"), result->getNumber<uint32_t>("key"), result->getNumber<int32_t>("value"));
 		} while (result->next());
@@ -4477,12 +4479,14 @@ bool Game::saveAccountStorageValues() const
 {
 	DBTransaction transaction;
 	Database& db = Database::getInstance();
+	const std::string keyColumn = db.quoteIdentifier("key");
+	const std::string valueColumn = db.quoteIdentifier("value");
 
 	if (!transaction.begin()) {
 		return false;
 	}
 
-	if (!db.executeQuery("DELETE FROM `account_storage`")) {
+	if (!db.executeQuery("DELETE FROM account_storage")) {
 		return false;
 	}
 
@@ -4491,7 +4495,7 @@ bool Game::saveAccountStorageValues() const
 			continue;
 		}
 
-		DBInsert accountStorageQuery("INSERT INTO `account_storage` (`account_id`, `key`, `value`) VALUES");
+	DBInsert accountStorageQuery(fmt::format("INSERT INTO account_storage (account_id, {:s}, {:s}) VALUES", keyColumn, valueColumn));
 		for (const auto& storageIt : accountIt.second) {
 			if (!accountStorageQuery.addRow(fmt::format("{:d}, {:d}, {:d}", accountIt.first, storageIt.first, storageIt.second))) {
 				return false;
@@ -4815,30 +4819,32 @@ void Game::updateCreatureType(Creature* creature)
 void Game::loadMotdNum()
 {
 	Database& db = Database::getInstance();
+	const std::string valueColumn = db.quoteIdentifier("value");
 
-	DBResult_ptr result = db.storeQuery("SELECT `value` FROM `server_config` WHERE `config` = 'motd_num'");
+	DBResult_ptr result = db.storeQuery(fmt::format("SELECT {:s} FROM server_config WHERE config = 'motd_num'", valueColumn));
 	if (result) {
 		motdNum = result->getNumber<uint32_t>("value");
 	} else {
-		db.executeQuery("INSERT INTO `server_config` (`config`, `value`) VALUES ('motd_num', '0')");
+		db.executeQuery(fmt::format("INSERT INTO server_config (config, {:s}) VALUES ('motd_num', '0')", valueColumn));
 	}
 
-	result = db.storeQuery("SELECT `value` FROM `server_config` WHERE `config` = 'motd_hash'");
+	result = db.storeQuery(fmt::format("SELECT {:s} FROM server_config WHERE config = 'motd_hash'", valueColumn));
 	if (result) {
 		motdHash = result->getString("value");
 		if (motdHash != transformToSHA1(g_config.getString(ConfigManager::MOTD))) {
 			++motdNum;
 		}
 	} else {
-		db.executeQuery("INSERT INTO `server_config` (`config`, `value`) VALUES ('motd_hash', '')");
+		db.executeQuery(fmt::format("INSERT INTO server_config (config, {:s}) VALUES ('motd_hash', '')", valueColumn));
 	}
 }
 
 void Game::saveMotdNum() const
 {
 	Database& db = Database::getInstance();
-	db.executeQuery(fmt::format("UPDATE `server_config` SET `value` = '{:d}' WHERE `config` = 'motd_num'", motdNum));
-	db.executeQuery(fmt::format("UPDATE `server_config` SET `value` = '{:s}' WHERE `config` = 'motd_hash'", transformToSHA1(g_config.getString(ConfigManager::MOTD))));
+	const std::string valueColumn = db.quoteIdentifier("value");
+	db.executeQuery(fmt::format("UPDATE server_config SET {:s} = '{:d}' WHERE config = 'motd_num'", valueColumn, motdNum));
+	db.executeQuery(fmt::format("UPDATE server_config SET {:s} = '{:s}' WHERE config = 'motd_hash'", valueColumn, transformToSHA1(g_config.getString(ConfigManager::MOTD))));
 }
 
 void Game::checkPlayersRecord()
@@ -4858,18 +4864,20 @@ void Game::checkPlayersRecord()
 void Game::updatePlayersRecord() const
 {
 	Database& db = Database::getInstance();
-	db.executeQuery(fmt::format("UPDATE `server_config` SET `value` = '{:d}' WHERE `config` = 'players_record'", playersRecord));
+	const std::string valueColumn = db.quoteIdentifier("value");
+	db.executeQuery(fmt::format("UPDATE server_config SET {:s} = '{:d}' WHERE config = 'players_record'", valueColumn, playersRecord));
 }
 
 void Game::loadPlayersRecord()
 {
 	Database& db = Database::getInstance();
+	const std::string valueColumn = db.quoteIdentifier("value");
 
-	DBResult_ptr result = db.storeQuery("SELECT `value` FROM `server_config` WHERE `config` = 'players_record'");
+	DBResult_ptr result = db.storeQuery(fmt::format("SELECT {:s} FROM server_config WHERE config = 'players_record'", valueColumn));
 	if (result) {
 		playersRecord = result->getNumber<uint32_t>("value");
 	} else {
-		db.executeQuery("INSERT INTO `server_config` (`config`, `value`) VALUES ('players_record', '0')");
+		db.executeQuery(fmt::format("INSERT INTO server_config (config, {:s}) VALUES ('players_record', '0')", valueColumn));
 	}
 }
 
@@ -5846,7 +5854,9 @@ bool Game::reload(ReloadTypes_t reloadType)
 void Game::loadGlobalStorages()
 {
 	Database& db = Database::getInstance();
-	DBResult_ptr result = db.storeQuery("SELECT `key`, `value` FROM `global_storage`");
+	const std::string keyColumn = db.quoteIdentifier("key");
+	const std::string valueColumn = db.quoteIdentifier("value");
+	DBResult_ptr result = db.storeQuery(fmt::format("SELECT {:s}, {:s} FROM global_storage", keyColumn, valueColumn));
 	if (result) {
 		do {
 			globalStorageMap[result->getNumber<uint32_t>("key")] = result->getNumber<int64_t>("value");
@@ -5857,12 +5867,14 @@ void Game::loadGlobalStorages()
 bool Game::saveGlobalStorages() const
 {
 	Database& db = Database::getInstance();
+	const std::string keyColumn = db.quoteIdentifier("key");
+	const std::string valueColumn = db.quoteIdentifier("value");
 
-	if (!db.executeQuery("DELETE FROM `global_storage`")) {
+	if (!db.executeQuery("DELETE FROM global_storage")) {
 		return false;
 	}
 
-	DBInsert storageQuery("INSERT INTO `global_storage` (`key`, `value`) VALUES ");
+	DBInsert storageQuery(fmt::format("INSERT INTO global_storage ({:s}, {:s}) VALUES ", keyColumn, valueColumn));
 
 	for (const auto& it : globalStorageMap) {
 		if (!storageQuery.addRow(fmt::format("{:d}, {:d}", it.first, it.second))) {
