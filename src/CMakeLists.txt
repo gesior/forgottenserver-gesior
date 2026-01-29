@@ -180,6 +180,7 @@ target_link_libraries(tfslib PRIVATE
 		${CMAKE_THREAD_LIBS_INIT}
 		${LUA_LIBRARIES}
 		${MYSQL_CLIENT_LIBS}
+		${PostgreSQL_LIBRARIES}
 )
 if (APPLE)
 	target_link_libraries(tfslib PRIVATE Iconv::Iconv)

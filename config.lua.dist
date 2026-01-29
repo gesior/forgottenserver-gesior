@@ -69,6 +69,9 @@ premiumToCreateMarketOffer = true
 checkExpiredMarketOffersEachMinutes = 60
 maxMarketOffersAtATimePerPlayer = 100
 
+-- Database, "mysql" or "postgres"
+dbType = "mysql"
+
 -- MySQL
 mysqlHost = "127.0.0.1"
 mysqlUser = "forgottenserver"
@@ -76,6 +79,15 @@ mysqlPass = ""
 mysqlDatabase = "forgottenserver"
 mysqlPort = 3306
 mysqlSock = ""
+
+-- PostgreSQL
+postgresHost = "127.0.0.1"
+postgresUser = "forgottenserver"
+postgresPass = ""
+postgresDatabase = "forgottenserver"
+postgresPort = 5432
+postgresSchema = "public"
+postgresSslMode = "prefer"
 
 -- Misc.
 -- NOTE: classicAttackSpeed set to true makes players constantly attack at regular

@@ -6,6 +6,8 @@
 
 #include "pugicast.h"
 
+#include <libpq-fe.h>
+
 class DBResult;
 using DBResult_ptr = std::shared_ptr<DBResult>;
 
@@ -20,7 +22,26 @@ struct MysqlDeleter
 using Mysql_ptr = std::unique_ptr<MYSQL, MysqlDeleter>;
 using MysqlResult_ptr = std::unique_ptr<MYSQL_RES, MysqlDeleter>;
 
+struct PgConnDeleter
+{
+	void operator()(PGconn* handle) const;
+};
+
+struct PgResultDeleter
+{
+	void operator()(PGresult* handle) const;
+};
+
+using PgConn_ptr = std::unique_ptr<PGconn, PgConnDeleter>;
+using PgResult_ptr = std::unique_ptr<PGresult, PgResultDeleter>;
+
 } // namespace tfs::detail
+
+enum class DatabaseBackend
+{
+	Mysql,
+	Postgres,
+};
 
 class Database
 {
@@ -70,7 +91,7 @@ class Database
 		 * @param s string to be escaped
 		 * @return quoted string
 		 */
-		[[nodiscard]] std::string escapeString(std::string_view s) const { return escapeBlob(s.data(), s.length()); }
+		[[nodiscard]] std::string escapeString(std::string_view s) const;
 
 		/**
 		 * Escapes binary stream for query.
@@ -88,14 +109,17 @@ class Database
 		 *
 		 * @return id on success, 0 if last query did not result on any rows with auto_increment keys
 		 */
-		[[nodiscard]] uint64_t getLastInsertId() const { return static_cast<uint64_t>(mysql_insert_id(handle.get())); }
+		[[nodiscard]] uint64_t getLastInsertId();
 
 		/**
 		 * Get database engine version
 		 *
 		 * @return the database engine version
 		 */
-		static const char* getClientVersion() { return mysql_get_client_info(); }
+		[[nodiscard]] std::string getClientVersion() const;
+
+		[[nodiscard]] DatabaseBackend getBackend() const { return backend; }
+		[[nodiscard]] const char* getBackendName() const;
 
 		[[nodiscard]] uint64_t getMaxPacketSize() const { return maxPacketSize; }
 
@@ -111,8 +135,10 @@ class Database
 		bool rollback();
 		bool commit();
 
-		tfs::detail::Mysql_ptr handle = nullptr;
-		std::recursive_mutex databaseLock;
+		DatabaseBackend backend = DatabaseBackend::Mysql;
+		tfs::detail::Mysql_ptr mysqlHandle = nullptr;
+		tfs::detail::PgConn_ptr pgHandle = nullptr;
+		mutable std::recursive_mutex databaseLock;
 		uint64_t maxPacketSize = 1048576;
 		// Do not retry queries if we are in the middle of a transaction
 		bool retryQueries = true;
@@ -124,6 +150,7 @@ class DBResult
 {
 	public:
 		explicit DBResult(tfs::detail::MysqlResult_ptr&& res);
+		explicit DBResult(tfs::detail::PgResult_ptr&& res);
 
 		// non-copyable
 		DBResult(const DBResult&) = delete;
@@ -139,11 +166,18 @@ class DBResult
 				return {};
 			}
 
-			if (!row[it->second]) {
+			if (backend == DatabaseBackend::Postgres) {
+				if (PQgetisnull(pgHandle.get(), currentRow, static_cast<int>(it->second)) != 0) {
+					return {};
+				}
+				return pugi::cast<T>(PQgetvalue(pgHandle.get(), currentRow, static_cast<int>(it->second)));
+			}
+
+			if (!mysqlRow[it->second]) {
 				return {};
 			}
 
-			return pugi::cast<T>(row[it->second]);
+			return pugi::cast<T>(mysqlRow[it->second]);
 		}
 
 		[[nodiscard]] std::string getString(std::string_view column) const;
@@ -153,8 +187,13 @@ class DBResult
 		bool next();
 
 	private:
-		tfs::detail::MysqlResult_ptr handle;
-		MYSQL_ROW row;
+		DatabaseBackend backend = DatabaseBackend::Mysql;
+		tfs::detail::MysqlResult_ptr mysqlHandle;
+		MYSQL_ROW mysqlRow = nullptr;
+		tfs::detail::PgResult_ptr pgHandle;
+		int currentRow = 0;
+		int rowCount = 0;
+		mutable std::vector<unsigned char> postgresBlobBuffer;
 
 		std::map<std::string_view, size_t> listNames;
 

@@ -58,6 +58,8 @@ else ()
     find_package(MySQL REQUIRED)
 endif ()
 
+find_package(PostgreSQL REQUIRED)
+
 find_package(Threads REQUIRED)
 find_package(PugiXML CONFIG REQUIRED)
 
@@ -84,7 +86,7 @@ if (BUILD_TESTING)
 endif ()
 find_package(Boost 1.71.0 REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
-include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PUGIXML_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} ${LUA_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR} ${PostgreSQL_INCLUDE_DIRS} ${PUGIXML_INCLUDE_DIR})
 
 # Option to disable OTS Stats
 option(ENABLE_OTS_STATISTICS "OTS Statistics" ON)

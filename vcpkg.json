@@ -40,6 +40,12 @@
         "libmysql"
       ]
     },
+    "libpq": {
+      "description": "Use libpq for PostgreSQL support",
+      "dependencies": [
+        "libpq"
+      ]
+    },
     "unit-tests": {
       "description": "Build unit tests",
       "dependencies": [
@@ -49,7 +55,8 @@
   },
   "default-features": [
     "luajit",
-    "libmariadb"
+    "libmariadb",
+    "libpq"
   ],
   "builtin-baseline": "0cf34c184ce990471435b5b9c92edcf7424930b1"
 }

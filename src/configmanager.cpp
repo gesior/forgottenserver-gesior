@@ -167,13 +167,21 @@ bool ConfigManager::load()
 		string[MAP_NAME] = getGlobalString(L, "mapName", "forgotten");
 		string[MAP_AUTHOR] = getGlobalString(L, "mapAuthor", "Unknown");
 		string[HOUSE_RENT_PERIOD] = getGlobalString(L, "houseRentPeriod", "never");
+		string[DB_TYPE] = getGlobalString(L, "dbType", "mysql");
 		string[MYSQL_HOST] = getGlobalString(L, "mysqlHost", "127.0.0.1");
 		string[MYSQL_USER] = getGlobalString(L, "mysqlUser", "forgottenserver");
 		string[MYSQL_PASS] = getGlobalString(L, "mysqlPass", "");
 		string[MYSQL_DB] = getGlobalString(L, "mysqlDatabase", "forgottenserver");
 		string[MYSQL_SOCK] = getGlobalString(L, "mysqlSock", "");
+		string[POSTGRES_HOST] = getGlobalString(L, "postgresHost", "127.0.0.1");
+		string[POSTGRES_USER] = getGlobalString(L, "postgresUser", "forgottenserver");
+		string[POSTGRES_PASS] = getGlobalString(L, "postgresPass", "");
+		string[POSTGRES_DB] = getGlobalString(L, "postgresDatabase", "forgottenserver");
+		string[POSTGRES_SCHEMA] = getGlobalString(L, "postgresSchema", "public");
+		string[POSTGRES_SSLMODE] = getGlobalString(L, "postgresSslMode", "prefer");
 
 		integer[SQL_PORT] = getGlobalNumber(L, "mysqlPort", 3306);
+		integer[POSTGRES_PORT] = getGlobalNumber(L, "postgresPort", 5432);
 
 		if (integer[GAME_PORT] == 0) {
 			integer[GAME_PORT] = getGlobalNumber(L, "gameProtocolPort", 7172);

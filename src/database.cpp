@@ -9,11 +9,59 @@
 #include "stats.h"
 #endif
 
+#include <libpq-fe.h>
 #include <mysql/errmsg.h>
 
 extern ConfigManager g_config;
 
-static tfs::detail::Mysql_ptr connectToDatabase(const bool retryIfError)
+void tfs::detail::PgConnDeleter::operator()(PGconn* handle) const
+{
+	if (handle) {
+		PQfinish(handle);
+	}
+}
+
+void tfs::detail::PgResultDeleter::operator()(PGresult* handle) const
+{
+	if (handle) {
+		PQclear(handle);
+	}
+}
+
+static std::string toLowerString(std::string value)
+{
+	std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+		return static_cast<char>(std::tolower(ch));
+	});
+	return value;
+}
+
+static DatabaseBackend getDatabaseBackendFromConfig()
+{
+	std::string type = toLowerString(g_config.getString(ConfigManager::DB_TYPE));
+	if (type == "postgres" || type == "postgresql") {
+		return DatabaseBackend::Postgres;
+	}
+	if (type != "mysql" && !type.empty()) {
+		std::cout << "[Warning - Database] Unknown dbType '" << type << "', falling back to mysql." << std::endl;
+	}
+	return DatabaseBackend::Mysql;
+}
+
+static std::string escapeConninfoValue(std::string_view value)
+{
+	std::string escaped;
+	escaped.reserve(value.size());
+	for (char ch : value) {
+		if (ch == '\\' || ch == '\'') {
+			escaped.push_back('\\');
+		}
+		escaped.push_back(ch);
+	}
+	return escaped;
+}
+
+static tfs::detail::Mysql_ptr connectToMysql(const bool retryIfError)
 {
 	bool isFirstAttemptToConnect = true;
 
@@ -62,10 +110,55 @@ static tfs::detail::Mysql_ptr connectToDatabase(const bool retryIfError)
 	return nullptr;
 }
 
+static tfs::detail::PgConn_ptr connectToPostgres(const bool retryIfError)
+{
+	bool isFirstAttemptToConnect = true;
+
+	retry:
+	if (!isFirstAttemptToConnect) {
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	isFirstAttemptToConnect = false;
+
+	std::string conninfo = fmt::format(
+		"host='{0}' port='{1}' user='{2}' password='{3}' dbname='{4}' sslmode='{5}'",
+		escapeConninfoValue(g_config.getString(ConfigManager::POSTGRES_HOST)),
+		escapeConninfoValue(std::to_string(g_config.getNumber(ConfigManager::POSTGRES_PORT))),
+		escapeConninfoValue(g_config.getString(ConfigManager::POSTGRES_USER)),
+		escapeConninfoValue(g_config.getString(ConfigManager::POSTGRES_PASS)),
+		escapeConninfoValue(g_config.getString(ConfigManager::POSTGRES_DB)),
+		escapeConninfoValue(g_config.getString(ConfigManager::POSTGRES_SSLMODE)));
+
+	tfs::detail::PgConn_ptr handle{PQconnectdb(conninfo.c_str())};
+	if (!handle || PQstatus(handle.get()) != CONNECTION_OK) {
+		std::cout << std::endl << "PostgreSQL Error Message: " << PQerrorMessage(handle.get()) << std::endl;
+		goto error;
+	}
+	return handle;
+
+	error:
+	if (retryIfError) {
+		goto retry;
+	}
+	return nullptr;
+}
+
 static bool isLostConnectionError(const unsigned error)
 {
 	return error == CR_SERVER_LOST || error == CR_SERVER_GONE_ERROR || error == CR_CONN_HOST_ERROR ||
 		error == 1053 /*ER_SERVER_SHUTDOWN*/ || error == CR_CONNECTION_ERROR;
+}
+
+static bool isPostgresConnectionBad(const tfs::detail::PgConn_ptr& handle)
+{
+	return !handle || PQstatus(handle.get()) != CONNECTION_OK;
+}
+
+static std::string normalizeQueryForPostgres(std::string_view query)
+{
+	std::string normalized{query};
+	std::replace(normalized.begin(), normalized.end(), '`', '"');
+	return normalized;
 }
 
 static bool executeQuery(tfs::detail::Mysql_ptr& handle, std::string_view query, const bool retryIfLostConnection)
@@ -77,19 +170,59 @@ static bool executeQuery(tfs::detail::Mysql_ptr& handle, std::string_view query,
 		if (!isLostConnectionError(error) || !retryIfLostConnection) {
 			return false;
 		}
-		handle = connectToDatabase(true);
+		handle = connectToMysql(true);
 	}
 	return true;
 }
 
+static bool executeQuery(tfs::detail::PgConn_ptr& handle, std::string_view query, const bool retryIfLostConnection)
+{
+	std::string queryString = normalizeQueryForPostgres(query);
+	while (true) {
+		tfs::detail::PgResult_ptr result{PQexec(handle.get(), queryString.c_str())};
+		if (result && (PQresultStatus(result.get()) == PGRES_COMMAND_OK || PQresultStatus(result.get()) == PGRES_TUPLES_OK)) {
+			return true;
+		}
+
+		std::cout << "[Error - PQexec] Query: " << queryString.substr(0, 256) << std::endl
+				  << "Message: " << PQerrorMessage(handle.get()) << std::endl;
+
+		if (!retryIfLostConnection || !isPostgresConnectionBad(handle)) {
+			return false;
+		}
+		handle = connectToPostgres(true);
+		if (!handle) {
+			return false;
+		}
+	}
+}
+
 bool Database::connect()
 {
-	auto newHandle = connectToDatabase(false);
+	backend = getDatabaseBackendFromConfig();
+	if (backend == DatabaseBackend::Postgres) {
+		auto newHandle = connectToPostgres(false);
+		if (!newHandle) {
+			return false;
+		}
+
+		mysqlHandle.reset();
+		pgHandle = std::move(newHandle);
+
+		const std::string& schema = g_config.getString(ConfigManager::POSTGRES_SCHEMA);
+		if (!schema.empty()) {
+			executeQuery(fmt::format("SET search_path TO {:s}", escapeString(schema)));
+		}
+		return true;
+	}
+
+	auto newHandle = connectToMysql(false);
 	if (!newHandle) {
 		return false;
 	}
 
-	handle = std::move(newHandle);
+	pgHandle.reset();
+	mysqlHandle = std::move(newHandle);
 	DBResult_ptr result = storeQuery("SHOW VARIABLES LIKE 'max_allowed_packet'");
 	if (result) {
 		maxPacketSize = result->getNumber<uint64_t>("Value");
@@ -131,10 +264,15 @@ bool Database::executeQuery(const std::string& query)
 	std::chrono::high_resolution_clock::time_point time_point = std::chrono::high_resolution_clock::now();
 #endif
 
-	auto success = ::executeQuery(handle, query, retryQueries);
-	// we should call that every time as someone would call executeQuery('SELECT...')
-	// as it is described in MySQL manual: "it doesn't hurt" :P
-	tfs::detail::MysqlResult_ptr res{mysql_store_result(handle.get())};
+	bool success = false;
+	if (backend == DatabaseBackend::Postgres) {
+		success = ::executeQuery(pgHandle, query, retryQueries);
+	} else {
+		success = ::executeQuery(mysqlHandle, query, retryQueries);
+		// we should call that every time as someone would call executeQuery('SELECT...')
+		// as it is described in MySQL manual: "it doesn't hurt" :P
+		tfs::detail::MysqlResult_ptr res{mysql_store_result(mysqlHandle.get())};
+	}
 
 #ifdef STATS_ENABLED
 	uint64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - time_point).count();
@@ -152,16 +290,47 @@ DBResult_ptr Database::storeQuery(std::string_view query)
 	std::chrono::high_resolution_clock::time_point time_point = std::chrono::high_resolution_clock::now();
 #endif
 
+	if (backend == DatabaseBackend::Postgres) {
+		retry:
+		{
+			std::string normalizedQuery = normalizeQueryForPostgres(query);
+			tfs::detail::PgResult_ptr res{PQexec(pgHandle.get(), normalizedQuery.c_str())};
+			if (!res || PQresultStatus(res.get()) != PGRES_TUPLES_OK) {
+				std::cout << "[Error - PQexec] Query: " << normalizedQuery << std::endl
+						  << "Message: " << PQerrorMessage(pgHandle.get()) << std::endl;
+				if (!retryQueries || !isPostgresConnectionBad(pgHandle)) {
+					return nullptr;
+				}
+				pgHandle = connectToPostgres(true);
+				if (!pgHandle) {
+					return nullptr;
+				}
+				goto retry;
+			}
+
+#ifdef STATS_ENABLED
+			uint64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - time_point).count();
+			g_stats.addSqlStats(new Stat(ns, std::string{query.substr(0, 100)}, std::string{query.substr(0, 256)}));
+#endif
+
+			DBResult_ptr result = std::make_shared<DBResult>(std::move(res));
+			if (!result->hasNext()) {
+				return nullptr;
+			}
+			return result;
+		}
+	}
+
 	retry:
-	if (!::executeQuery(handle, query, retryQueries) && !retryQueries) {
+	if (!::executeQuery(mysqlHandle, query, retryQueries) && !retryQueries) {
 		return nullptr;
 	}
 
-	tfs::detail::MysqlResult_ptr res{mysql_store_result(handle.get())};
+	tfs::detail::MysqlResult_ptr res{mysql_store_result(mysqlHandle.get())};
 	if (!res) {
 		std::cout << "[Error - mysql_store_result] Query: " << query << std::endl
-				  << "Message: " << mysql_error(handle.get()) << std::endl;
-		const unsigned error = mysql_errno(handle.get());
+				  << "Message: " << mysql_error(mysqlHandle.get()) << std::endl;
+		const unsigned error = mysql_errno(mysqlHandle.get());
 		if (!isLostConnectionError(error) || !retryQueries) {
 			return nullptr;
 		}
@@ -181,8 +350,38 @@ DBResult_ptr Database::storeQuery(std::string_view query)
 	return result;
 }
 
+std::string Database::escapeString(std::string_view s) const
+{
+	if (backend == DatabaseBackend::Postgres) {
+		const size_t maxLength = (s.length() * 2) + 1;
+		std::string escaped;
+		escaped.resize(maxLength);
+		int error = 0;
+		size_t escapedLength = PQescapeStringConn(pgHandle.get(), escaped.data(), s.data(), s.length(), &error);
+		if (error != 0) {
+			return "''";
+		}
+		escaped.resize(escapedLength);
+		return fmt::format("'{:s}'", escaped);
+	}
+
+	return escapeBlob(s.data(), s.length());
+}
+
 std::string Database::escapeBlob(const char* s, uint32_t length) const
 {
+	if (backend == DatabaseBackend::Postgres) {
+		size_t escapedLength = 0;
+		unsigned char* output = PQescapeByteaConn(pgHandle.get(), reinterpret_cast<const unsigned char*>(s), length, &escapedLength);
+		std::string escaped;
+		escaped.reserve(escapedLength + 3);
+		escaped.append("E'");
+		escaped.append(reinterpret_cast<char*>(output));
+		escaped.push_back('\'');
+		PQfreemem(output);
+		return escaped;
+	}
+
 	// the worst case is 2n + 1
 	size_t maxLength = (length * 2) + 1;
 
@@ -192,7 +391,7 @@ std::string Database::escapeBlob(const char* s, uint32_t length) const
 
 	if (length != 0) {
 		char* output = new char[maxLength];
-		mysql_real_escape_string(handle.get(), output, s, length);
+		mysql_real_escape_string(mysqlHandle.get(), output, s, length);
 		escaped.append(output);
 		delete[] output;
 	}
@@ -201,17 +400,62 @@ std::string Database::escapeBlob(const char* s, uint32_t length) const
 	return escaped;
 }
 
-DBResult::DBResult(tfs::detail::MysqlResult_ptr&& res) : handle{std::move(res)}
+uint64_t Database::getLastInsertId()
+{
+	std::lock_guard<std::recursive_mutex> lockGuard(databaseLock);
+	if (backend == DatabaseBackend::Postgres) {
+		tfs::detail::PgResult_ptr result{PQexec(pgHandle.get(), "SELECT LASTVAL()")};
+		if (!result || PQresultStatus(result.get()) != PGRES_TUPLES_OK || PQntuples(result.get()) < 1) {
+			return 0;
+		}
+		const char* value = PQgetvalue(result.get(), 0, 0);
+		if (!value) {
+			return 0;
+		}
+		return pugi::cast<uint64_t>(value);
+	}
+
+	return static_cast<uint64_t>(mysql_insert_id(mysqlHandle.get()));
+}
+
+std::string Database::getClientVersion() const
+{
+	if (backend == DatabaseBackend::Postgres) {
+		const int version = PQlibVersion();
+		const int major = version / 10000;
+		const int minor = (version / 100) % 100;
+		const int patch = version % 100;
+		return fmt::format("{:d}.{:d}.{:d}", major, minor, patch);
+	}
+	return mysql_get_client_info();
+}
+
+const char* Database::getBackendName() const
+{
+	return backend == DatabaseBackend::Postgres ? "PostgreSQL" : "MySQL";
+}
+
+DBResult::DBResult(tfs::detail::MysqlResult_ptr&& res) : backend{DatabaseBackend::Mysql}, mysqlHandle{std::move(res)}
 {
 	size_t i = 0;
 
-	MYSQL_FIELD* field = mysql_fetch_field(handle.get());
+	MYSQL_FIELD* field = mysql_fetch_field(mysqlHandle.get());
 	while (field) {
 		listNames[field->name] = i++;
-		field = mysql_fetch_field(handle.get());
+		field = mysql_fetch_field(mysqlHandle.get());
 	}
 
-	row = mysql_fetch_row(handle.get());
+	mysqlRow = mysql_fetch_row(mysqlHandle.get());
+}
+
+DBResult::DBResult(tfs::detail::PgResult_ptr&& res) : backend{DatabaseBackend::Postgres}, pgHandle{std::move(res)}
+{
+	rowCount = PQntuples(pgHandle.get());
+	const int fieldCount = PQnfields(pgHandle.get());
+	for (int i = 0; i < fieldCount; ++i) {
+		listNames[PQfname(pgHandle.get(), i)] = static_cast<size_t>(i);
+	}
+	currentRow = 0;
 }
 
 std::string DBResult::getString(std::string_view column) const
@@ -222,11 +466,18 @@ std::string DBResult::getString(std::string_view column) const
 		return {};
 	}
 
-	if (!row[it->second]) {
+	if (backend == DatabaseBackend::Postgres) {
+		if (PQgetisnull(pgHandle.get(), currentRow, static_cast<int>(it->second)) != 0) {
+			return {};
+		}
+		return PQgetvalue(pgHandle.get(), currentRow, static_cast<int>(it->second));
+	}
+
+	if (!mysqlRow[it->second]) {
 		return {};
 	}
 
-	return row[it->second];
+	return mysqlRow[it->second];
 }
 
 const char* DBResult::getStream(const std::string& s, unsigned long& size) const
@@ -238,21 +489,52 @@ const char* DBResult::getStream(const std::string& s, unsigned long& size) const
 		return nullptr;
 	}
 
-	if (row[it->second] == nullptr) {
+	if (backend == DatabaseBackend::Postgres) {
+		if (PQgetisnull(pgHandle.get(), currentRow, static_cast<int>(it->second)) != 0) {
+			size = 0;
+			return nullptr;
+		}
+
+		size_t unescapedSize = 0;
+		unsigned char* unescaped = PQunescapeBytea(
+			reinterpret_cast<unsigned char*>(PQgetvalue(pgHandle.get(), currentRow, static_cast<int>(it->second))),
+			&unescapedSize);
+		if (!unescaped) {
+			size = 0;
+			return nullptr;
+		}
+		postgresBlobBuffer.assign(unescaped, unescaped + unescapedSize);
+		PQfreemem(unescaped);
+		size = static_cast<unsigned long>(postgresBlobBuffer.size());
+		return reinterpret_cast<const char*>(postgresBlobBuffer.data());
+	}
+
+	if (mysqlRow[it->second] == nullptr) {
 		size = 0;
 		return nullptr;
 	}
 
-	size = mysql_fetch_lengths(handle.get())[it->second];
-	return row[it->second];
+	size = mysql_fetch_lengths(mysqlHandle.get())[it->second];
+	return mysqlRow[it->second];
 }
 
-bool DBResult::hasNext() const { return row; }
+bool DBResult::hasNext() const
+{
+	if (backend == DatabaseBackend::Postgres) {
+		return currentRow < rowCount;
+	}
+	return mysqlRow;
+}
 
 bool DBResult::next()
 {
-	row = mysql_fetch_row(handle.get());
-	return row;
+	if (backend == DatabaseBackend::Postgres) {
+		++currentRow;
+		return currentRow < rowCount;
+	}
+
+	mysqlRow = mysql_fetch_row(mysqlHandle.get());
+	return mysqlRow;
 }
 
 DBInsert::DBInsert(std::string query) : query(std::move(query)) { this->length = this->query.length(); }

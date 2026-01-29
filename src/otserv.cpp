@@ -204,7 +204,7 @@ void mainLoader(int, char*[], ServiceManager* services)
 		return;
 	}
 
-	std::cout << " MySQL " << Database::getClientVersion() << std::endl;
+	std::cout << ' ' << Database::getInstance().getBackendName() << ' ' << Database::getInstance().getClientVersion() << std::endl;
 
 	// run database manager
 	std::cout << ">> Running database manager" << std::endl;
