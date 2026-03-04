@@ -4529,7 +4529,7 @@ void Game::startDecay(Item* item)
 
 void Game::stopDecay(Item* item)
 {
-	if (!item) {
+	if (!item || gameState == GAME_STATE_SHUTDOWN) {
 		return;
 	}
 
