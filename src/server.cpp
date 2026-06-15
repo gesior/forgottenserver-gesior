@@ -147,7 +147,7 @@ void ServicePort::onAccept(std::shared_ptr<Connection> connection, const boost::
 
 		connection->initializeIP();
 		const auto& remote_ip = connection->getIP();
-		if (acceptConnection(remote_ip)) {
+		if (remote_ip.is_unspecified() || acceptConnection(remote_ip)) {
 			const auto service = services.front();
 			if (service->is_single_socket()) {
 				connection->accept(service->make_protocol(connection));
