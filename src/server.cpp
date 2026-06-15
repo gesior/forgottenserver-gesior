@@ -145,6 +145,7 @@ void ServicePort::onAccept(std::shared_ptr<Connection> connection, const boost::
 			return;
 		}
 
+		connection->initializeIP();
 		const auto& remote_ip = connection->getIP();
 		if (acceptConnection(remote_ip)) {
 			const auto service = services.front();
