@@ -346,7 +346,7 @@ void Connection::handleTimeout(std::weak_ptr<Connection> connectionWeak, const b
 	}
 }
 
-void Connection::initializeIP()
+const Connection::Address& Connection::initializeIP()
 {
 	std::lock_guard<std::recursive_mutex> lockClass(connectionLock);
 	boost::system::error_code error;
@@ -355,4 +355,5 @@ void Connection::initializeIP()
 	} else {
 		std::cout << "[Network error - Connection::initializeIP] " << error.message() << std::endl;
 	}
+	return remoteAddress;
 }

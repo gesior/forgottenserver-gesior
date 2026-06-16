@@ -69,7 +69,7 @@ public:
 
 	void send(const std::shared_ptr<OutputMessage>& msg);
 
-	void initializeIP();
+	const Address& initializeIP();
 	const Address& getIP() const { return remoteAddress; };
 
 private:
