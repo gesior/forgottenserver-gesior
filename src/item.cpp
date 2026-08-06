@@ -166,9 +166,7 @@ Item* Item::clone() const
 	Item* item = Item::CreateItem(id, count);
 	if (attributes) {
 		item->attributes.reset(new ItemAttributes(*attributes));
-		if (item->getDuration() > 0) {
-			g_game.startDecay(item);
-		}
+		g_game.startDecay(item);
 	}
 	return item;
 }
@@ -242,6 +240,12 @@ void Item::onRemoved()
 
 void Item::setID(uint16_t newid)
 {
+	if (id == newid) {
+		// same-id transform (e.g. charge/subtype update) must not reset the duration or stop the decay
+		removeAttribute(ITEM_ATTRIBUTE_CORPSEOWNER);
+		return;
+	}
+
 	const ItemType& prevIt = Item::items[id];
 	id = newid;
 

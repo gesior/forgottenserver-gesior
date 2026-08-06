@@ -1264,7 +1264,7 @@ ReturnValue Game::internalMoveItem(Cylinder* fromCylinder, Cylinder* toCylinder,
 		return retMaxCount;
 	}
 
-	if (moveItem && moveItem->getDuration() > 0) {
+	if (moveItem) {
 		startDecay(moveItem);
 	}
 
@@ -1362,9 +1362,7 @@ ReturnValue Game::internalAddItem(Cylinder* toCylinder, Item* item, int32_t inde
 		}
 	}
 
-	if (item->getDuration() > 0) {
-		startDecay(item);
-	}
+	startDecay(item);
 
 	return RETURNVALUE_NOERROR;
 }
@@ -1644,6 +1642,7 @@ Item* Game::transformItem(Item* item, uint16_t newId, int32_t newCount /*= -1*/)
 	if (curType.alwaysOnTop != newType.alwaysOnTop) {
 		//This only occurs when you transform items on tiles from a downItem to a topItem (or vice versa)
 		//Remove the old, and add the new
+		bool wasDecaying = item->getDecaying() == DECAYING_TRUE;
 		cylinder->removeThing(item, item->getItemCount());
 		cylinder->postRemoveNotification(item, cylinder, itemIndex);
 
@@ -1660,6 +1659,10 @@ Item* Game::transformItem(Item* item, uint16_t newId, int32_t newCount /*= -1*/)
 		}
 
 		newParent->postAddNotification(item, cylinder, newParent->getThingIndex(item));
+		// removeThing()/setID() stopped the decay; a transformed item that was decaying must keep decaying
+		if (wasDecaying) {
+			startDecay(item);
+		}
 		return item;
 	}
 
@@ -1713,8 +1716,13 @@ Item* Game::transformItem(Item* item, uint16_t newId, int32_t newCount /*= -1*/)
 				count = newCount;
 			}
 
+			bool wasDecaying = item->getDecaying() == DECAYING_TRUE;
 			cylinder->updateThing(item, itemId, count);
 			cylinder->postAddNotification(item, cylinder, itemIndex);
+			// setID() may have stopped the decay (duration reset); an item that was decaying must keep decaying
+			if (wasDecaying) {
+				startDecay(item);
+			}
 			return item;
 		}
 	}
@@ -1739,9 +1747,7 @@ Item* Game::transformItem(Item* item, uint16_t newId, int32_t newCount /*= -1*/)
 	ReleaseItem(item);
 
 	stopDecay(item);
-	if (newItem->getDuration() > 0) {
-		startDecay(newItem);
-	}
+	startDecay(newItem);
 
 	return newItem;
 }
