@@ -423,8 +423,13 @@ void ProtocolGame::onConnect()
 	// Skip checksum
 	output->skipBytes(sizeof(uint32_t));
 
-	// Packet length & type
-	output->add<uint16_t>(0x0006);
+	// Packet length & type (GameMessageSizeCheck / GamePacketSizeU32)
+	constexpr uint16_t challengePayloadSize = 0x0006;
+	if (isBigPackets()) {
+		output->add<uint32_t>(challengePayloadSize);
+	} else {
+		output->add<uint16_t>(challengePayloadSize);
+	}
 	output->addByte(0x1F);
 
 	// Add timestamp & random number
@@ -435,8 +440,10 @@ void ProtocolGame::onConnect()
 	output->addByte(challengeRandom);
 
 	// Go back and write checksum
-	output->skipBytes(-12);
-	output->add<uint32_t>(adlerChecksum(output->getOutputBuffer() + sizeof(uint32_t), 8));
+	const int32_t checksumPayloadSize = isBigPackets() ? 10 : 8;
+	const int32_t checksumRewind = sizeof(uint32_t) + checksumPayloadSize;
+	output->skipBytes(-checksumRewind);
+	output->add<uint32_t>(adlerChecksum(output->getOutputBuffer() + sizeof(uint32_t), checksumPayloadSize));
 
 	send(output);
 }

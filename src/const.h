@@ -4,7 +4,8 @@
 #ifndef FS_CONST_H_0A49B5996F074465BF44B90F4F780E8B
 #define FS_CONST_H_0A49B5996F074465BF44B90F4F780E8B
 
-static constexpr int32_t NETWORKMESSAGE_MAXSIZE = 24590;
+// Supports OTCv8 GamePacketSizeU32 (up to ~500KB payload + headers)
+static constexpr int32_t NETWORKMESSAGE_MAXSIZE = 512 * 1024;
 
 enum MagicEffectClasses : uint8_t {
 	CONST_ME_NONE,

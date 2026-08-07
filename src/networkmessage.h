@@ -15,19 +15,27 @@ class RSA;
 class NetworkMessage
 {
 	public:
-		using MsgSize_t = uint16_t;
-		// Headers:
-		// 2 bytes for unencrypted message size
+		using MsgSize_t = uint32_t;
+		// Headers (GamePacketSizeU32 / big packets):
+		// 4 bytes for unencrypted message size
 		// 4 bytes for checksum
-		// 2 bytes for encrypted message size
-		static constexpr MsgSize_t INITIAL_BUFFER_POSITION = 8;
-		enum { HEADER_LENGTH = 2 };
-		enum { CHECKSUM_LENGTH = 4 };
-		enum { XTEA_MULTIPLE = 8 };
-		enum { MAX_BODY_LENGTH = NETWORKMESSAGE_MAXSIZE - HEADER_LENGTH - CHECKSUM_LENGTH - XTEA_MULTIPLE };
-		enum { MAX_PROTOCOL_BODY_LENGTH = MAX_BODY_LENGTH - 10 };
+		// 4 bytes for encrypted message size
+		// Standard headers use 2+4+2; we always reserve the larger space.
+		static constexpr MsgSize_t INITIAL_BUFFER_POSITION = 12;
+		enum {
+			HEADER_LENGTH = 2,
+			HEADER_LENGTH_U32 = 4,
+			CHECKSUM_LENGTH = 4,
+			XTEA_MULTIPLE = 8,
+			MAX_BODY_LENGTH = NETWORKMESSAGE_MAXSIZE - INITIAL_BUFFER_POSITION - XTEA_MULTIPLE,
+			MAX_PROTOCOL_BODY_LENGTH = MAX_BODY_LENGTH - 10
+		};
 
-		NetworkMessage() = default;
+		NetworkMessage() : buffer(std::make_unique<uint8_t[]>(NETWORKMESSAGE_MAXSIZE)) {}
+		NetworkMessage(const NetworkMessage&) = delete;
+		NetworkMessage& operator=(const NetworkMessage&) = delete;
+		NetworkMessage(NetworkMessage&&) noexcept = default;
+		NetworkMessage& operator=(NetworkMessage&&) noexcept = default;
 
 		void reset() {
 			info = {};
@@ -53,7 +61,7 @@ class NetworkMessage
 			}
 
 			T v;
-			memcpy(&v, buffer + info.position, sizeof(T));
+			memcpy(&v, buffer.get() + info.position, sizeof(T));
 			info.position += sizeof(T);
 			return v;
 		}
@@ -62,7 +70,7 @@ class NetworkMessage
 		Position getPosition();
 
 		// skips count unknown/unused bytes in an incoming message
-		void skipBytes(int16_t count) {
+		void skipBytes(int32_t count) {
 			info.position += count;
 		}
 
@@ -82,7 +90,7 @@ class NetworkMessage
 				return;
 			}
 
-			memcpy(buffer + info.position, &value, sizeof(T));
+			memcpy(buffer.get() + info.position, &value, sizeof(T));
 			info.position += sizeof(T);
 			info.length += sizeof(T);
 		}
@@ -126,42 +134,57 @@ class NetworkMessage
 			return static_cast<uint16_t>(buffer[0] | buffer[1] << 8);
 		}
 
+		uint32_t getLengthHeaderU32() const {
+			return static_cast<uint32_t>(buffer[0] | buffer[1] << 8 | buffer[2] << 16 | buffer[3] << 24);
+		}
+
 		bool isOverrun() const {
 			return info.overrun;
 		}
 
 		uint8_t* getBuffer() {
-			return buffer;
+			return buffer.get();
 		}
 
 		const uint8_t* getBuffer() const {
-			return buffer;
+			return buffer.get();
 		}
 
-		uint8_t* getRemainingBuffer() { return &buffer[0] + info.position; }
+		uint8_t* getRemainingBuffer() { return buffer.get() + info.position; }
 
-		uint8_t* getBodyBuffer() {
-			info.position = 2;
-			return buffer + HEADER_LENGTH;
+		uint8_t* getBodyBuffer(uint8_t headerLength = HEADER_LENGTH) {
+			info.position = headerLength;
+			info.bufferStart = headerLength;
+			return buffer.get() + headerLength;
+		}
+
+		void setBufferStart(MsgSize_t start) {
+			info.bufferStart = start;
+		}
+
+		MsgSize_t getBufferStart() const {
+			return info.bufferStart;
 		}
 
 	protected:
 		struct NetworkMessageInfo {
 			MsgSize_t length = 0;
 			MsgSize_t position = INITIAL_BUFFER_POSITION;
+			MsgSize_t bufferStart = INITIAL_BUFFER_POSITION;
 			bool overrun = false;
 		};
 
 		NetworkMessageInfo info;
-		uint8_t buffer[NETWORKMESSAGE_MAXSIZE];
+		std::unique_ptr<uint8_t[]> buffer;
 
 	private:
 		bool canAdd(size_t size) const {
 			return (size + info.position) < MAX_BODY_LENGTH;
 		}
 
-		bool canRead(int32_t size) {
-			if ((info.position + size) > (info.length + 8) || size >= (NETWORKMESSAGE_MAXSIZE - info.position)) {
+		bool canRead(MsgSize_t size) {
+			if ((info.position + size) > (info.length + info.bufferStart) ||
+			    (info.position + size) >= static_cast<MsgSize_t>(NETWORKMESSAGE_MAXSIZE)) {
 				info.overrun = true;
 				return false;
 			}

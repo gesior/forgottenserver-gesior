@@ -229,6 +229,7 @@ bool ConfigManager::load()
 	boolean[ALLOW_OTC_PROXY] = getGlobalBoolean(L, "allowOtcProxy", false);
 	boolean[ALLOW_HAPROXY] = getGlobalBoolean(L, "allowHaProxy", false);
 	boolean[ENABLE_LUA_DEBUG_COMMAND] = getGlobalBoolean(L, "enableLuaDebugCommand", false);
+	boolean[PACKET_SIZE_U32] = getGlobalBoolean(L, "packetSizeU32", false);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");

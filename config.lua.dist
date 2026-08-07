@@ -188,6 +188,8 @@ allowHaProxy = false
 -- empty string = return actual IP address of the server
 statusIp = ""
 
+packetSizeU32 = false
+
 -- Server Statistics
 -- time in seconds: 30 = 30 seconds, 0 = disabled
 statsDumpInterval = 30

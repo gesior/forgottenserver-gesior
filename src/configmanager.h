@@ -55,6 +55,7 @@ class ConfigManager
 			ALLOW_OTC_PROXY,
 			ALLOW_HAPROXY,
 			ENABLE_LUA_DEBUG_COMMAND,
+			PACKET_SIZE_U32,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};

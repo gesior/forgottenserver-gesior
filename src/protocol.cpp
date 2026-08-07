@@ -7,6 +7,9 @@
 #include "outputmessage.h"
 #include "rsa.h"
 #include "xtea.h"
+#include "configmanager.h"
+
+extern ConfigManager g_config;
 
 namespace {
 
@@ -22,41 +25,53 @@ void XTEA_encrypt(OutputMessage& msg, const xtea::round_keys& key)
 	xtea::encrypt(buffer, msg.getLength(), key);
 }
 
-bool XTEA_decrypt(NetworkMessage& msg, const xtea::round_keys& key)
+bool XTEA_decrypt(NetworkMessage& msg, const xtea::round_keys& key, bool bigPackets)
 {
-	if (((msg.getLength() - 6) & 7) != 0) {
+	const uint32_t headerChecksumSize = bigPackets ? 8u : 6u; // size header + checksum
+	const uint32_t fullHeaderSize = bigPackets ? 12u : 8u; // + inner message size
+
+	if (((msg.getLength() - headerChecksumSize) & 7) != 0) {
 		return false;
 	}
 
 	uint8_t* buffer = msg.getBuffer() + msg.getBufferPosition();
-	xtea::decrypt(buffer, msg.getLength() - 6, key);
+	xtea::decrypt(buffer, msg.getLength() - headerChecksumSize, key);
 
-	uint16_t innerLength = msg.get<uint16_t>();
-	if (innerLength + 8 > msg.getLength()) {
+	uint32_t innerLength = bigPackets ? msg.get<uint32_t>() : msg.get<uint16_t>();
+	if (innerLength + fullHeaderSize > msg.getLength()) {
 		return false;
 	}
 
+	msg.setBufferStart(msg.getBufferPosition());
 	msg.setLength(innerLength);
 	return true;
 }
 
 }
 
+Protocol::Protocol(Connection_ptr connection) : connection(std::move(connection))
+{
+	if (g_config.getBoolean(ConfigManager::PACKET_SIZE_U32)) {
+		bigPackets = true;
+	}
+}
+
 void Protocol::onSendMessage(const OutputMessage_ptr& msg) const
 {
 	if (!rawMessages) {
-		msg->writeMessageLength();
+		// Inner length (included in XTEA plaintext) or outer length when unencrypted
+		msg->writeMessageLength(bigPackets);
 
 		if (encryptionEnabled) {
 			XTEA_encrypt(*msg, key);
-			msg->addCryptoHeader(checksumEnabled);
+			msg->addCryptoHeader(checksumEnabled, bigPackets);
 		}
 	}
 }
 
 void Protocol::onRecvMessage(NetworkMessage& msg)
 {
-	if (encryptionEnabled && !XTEA_decrypt(msg, key)) {
+	if (encryptionEnabled && !XTEA_decrypt(msg, key, bigPackets)) {
 		return;
 	}
 

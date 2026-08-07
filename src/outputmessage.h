@@ -20,31 +20,35 @@ class OutputMessage : public NetworkMessage
 		OutputMessage& operator=(const OutputMessage&) = delete;
 
 		uint8_t* getOutputBuffer() {
-			return buffer + outputBufferStart;
+			return getBuffer() + outputBufferStart;
 		}
 
-		void writeMessageLength() {
-			add_header(info.length);
+		void writeMessageLength(bool bigPackets = false) {
+			if (bigPackets) {
+				add_header(static_cast<uint32_t>(info.length));
+			} else {
+				add_header(static_cast<uint16_t>(info.length));
+			}
 		}
 
-		void addCryptoHeader(bool addChecksum) {
+		void addCryptoHeader(bool addChecksum, bool bigPackets = false) {
 			if (addChecksum) {
-				add_header(adlerChecksum(buffer + outputBufferStart, info.length));
+				add_header(adlerChecksum(getBuffer() + outputBufferStart, info.length));
 			}
 
-			writeMessageLength();
+			writeMessageLength(bigPackets);
 		}
 
 		void append(const NetworkMessage& msg) {
 			auto msgLen = msg.getLength();
-			memcpy(buffer + info.position, msg.getBuffer() + 8, msgLen);
+			memcpy(getBuffer() + info.position, msg.getBuffer() + NetworkMessage::INITIAL_BUFFER_POSITION, msgLen);
 			info.length += msgLen;
 			info.position += msgLen;
 		}
 
 		void append(const OutputMessage_ptr& msg) {
 			auto msgLen = msg->getLength();
-			memcpy(buffer + info.position, msg->getBuffer() + 8, msgLen);
+			memcpy(getBuffer() + info.position, msg->getBuffer() + NetworkMessage::INITIAL_BUFFER_POSITION, msgLen);
 			info.length += msgLen;
 			info.position += msgLen;
 		}
@@ -54,7 +58,7 @@ class OutputMessage : public NetworkMessage
 		void add_header(T add) {
 			assert(outputBufferStart >= sizeof(T));
 			outputBufferStart -= sizeof(T);
-			memcpy(buffer + outputBufferStart, &add, sizeof(T));
+			memcpy(getBuffer() + outputBufferStart, &add, sizeof(T));
 			//added header size to the message size
 			info.length += sizeof(T);
 		}

@@ -96,6 +96,14 @@ void Connection::accept(Protocol_ptr protocol)
 	accept();
 }
 
+bool Connection::packetSizeU32() const
+{
+	if (protocol) {
+		return protocol->isBigPackets();
+	}
+	return g_config.getBoolean(ConfigManager::PACKET_SIZE_U32);
+}
+
 void Connection::accept()
 {
 	std::lock_guard<std::recursive_mutex> lockClass(connectionLock);
@@ -103,7 +111,7 @@ void Connection::accept()
 		readTimer.expires_after(std::chrono::seconds(CONNECTION_READ_TIMEOUT));
 		readTimer.async_wait(std::bind(&Connection::handleTimeout, std::weak_ptr<Connection>(shared_from_this()), std::placeholders::_1));
 
-		// Read size of the first packet
+		// Always read 2 bytes first (proxy detection + optional U32 size continuation)
 		boost::asio::async_read(socket,
 		                        boost::asio::buffer(msg.getBuffer(), NetworkMessage::HEADER_LENGTH),
 		                        std::bind(&Connection::parseHeader, shared_from_this(), std::placeholders::_1));
@@ -214,11 +222,48 @@ void Connection::parseHeader(const boost::system::error_code& error)
 		packetsSent = 0;
 	}
 
-	uint16_t size = msg.getLengthHeader();
-	if (size == 0 || size >= NETWORKMESSAGE_MAXSIZE - 16) {
+	if (packetSizeU32()) {
+		try {
+			readTimer.expires_after(std::chrono::seconds(CONNECTION_READ_TIMEOUT));
+			readTimer.async_wait(std::bind(&Connection::handleTimeout, std::weak_ptr<Connection>(shared_from_this()),
+			                                    std::placeholders::_1));
+
+			// Remaining 2 bytes of U32 packet size (OTCv8 GamePacketSizeU32)
+			boost::asio::async_read(socket, boost::asio::buffer(msg.getBuffer() + NetworkMessage::HEADER_LENGTH, 2),
+			                        std::bind(&Connection::parseHeaderSize, shared_from_this(), std::placeholders::_1));
+		} catch (boost::system::system_error& e) {
+			std::cout << "[Network error - Connection::parseHeader] " << e.what() << std::endl;
+			close(FORCE_CLOSE);
+		}
+		return;
+	}
+
+	readPacketContent(msg.getLengthHeader());
+}
+
+void Connection::parseHeaderSize(const boost::system::error_code& error)
+{
+	std::lock_guard<std::recursive_mutex> lockClass(connectionLock);
+	readTimer.cancel();
+
+	if (error) {
+		close(FORCE_CLOSE);
+		return;
+	} else if (closed) {
+		return;
+	}
+
+	readPacketContent(msg.getLengthHeaderU32());
+}
+
+void Connection::readPacketContent(uint32_t size)
+{
+	if (size == 0 || size >= static_cast<uint32_t>(NETWORKMESSAGE_MAXSIZE) - 16) {
 		close(FORCE_CLOSE);
 		return;
 	}
+
+	const uint8_t headerLength = packetSizeU32() ? NetworkMessage::HEADER_LENGTH_U32 : NetworkMessage::HEADER_LENGTH;
 
 	try {
 		readTimer.expires_after(std::chrono::seconds(CONNECTION_READ_TIMEOUT));
@@ -226,11 +271,11 @@ void Connection::parseHeader(const boost::system::error_code& error)
 		                                    std::placeholders::_1));
 
 		// Read packet content
-		msg.setLength(size + NetworkMessage::HEADER_LENGTH);
-		boost::asio::async_read(socket, boost::asio::buffer(msg.getBodyBuffer(), size),
+		msg.setLength(size + headerLength);
+		boost::asio::async_read(socket, boost::asio::buffer(msg.getBodyBuffer(headerLength), size),
 		                        std::bind(&Connection::parsePacket, shared_from_this(), std::placeholders::_1));
 	} catch (boost::system::system_error& e) {
-		std::cout << "[Network error - Connection::parseHeader] " << e.what() << std::endl;
+		std::cout << "[Network error - Connection::readPacketContent] " << e.what() << std::endl;
 		close(FORCE_CLOSE);
 	}
 }
@@ -287,7 +332,7 @@ void Connection::parsePacket(const boost::system::error_code& error)
 		readTimer.async_wait(std::bind(&Connection::handleTimeout, std::weak_ptr<Connection>(shared_from_this()),
 		                                    std::placeholders::_1));
 
-		// Wait to the next packet
+		// Wait to the next packet (2-byte size prefix; U32 continues in parseHeader)
 		boost::asio::async_read(socket,
 		                        boost::asio::buffer(msg.getBuffer(), NetworkMessage::HEADER_LENGTH),
 		                        std::bind(&Connection::parseHeader, shared_from_this(), std::placeholders::_1));

@@ -77,9 +77,13 @@ class Connection : public std::enable_shared_from_this<Connection>
 		void parseHaProxyPacket(const boost::system::error_code& error);
 		bool tryParseProxyPacket();
 		void parseHeader(const boost::system::error_code& error);
+		void parseHeaderSize(const boost::system::error_code& error);
+		void readPacketContent(uint32_t size);
 		void parsePacket(const boost::system::error_code& error);
 
 		void onWriteOperation(const boost::system::error_code& error);
+
+		bool packetSizeU32() const;
 
 		static void handleTimeout(ConnectionWeak_ptr connectionWeak, const boost::system::error_code& error);
 

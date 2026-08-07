@@ -10,7 +10,7 @@
 class Protocol : public std::enable_shared_from_this<Protocol>
 {
 	public:
-		explicit Protocol(Connection_ptr connection) : connection(connection) {}
+		explicit Protocol(Connection_ptr connection);
 		virtual ~Protocol() = default;
 
 		// non-copyable
@@ -49,6 +49,10 @@ class Protocol : public std::enable_shared_from_this<Protocol>
 			}
 		}
 
+		bool isBigPackets() const {
+			return bigPackets;
+		}
+
 	protected:
 		static constexpr size_t RSA_BUFFER_LENGTH = 128;
 
@@ -65,6 +69,9 @@ class Protocol : public std::enable_shared_from_this<Protocol>
 		}
 		void disableChecksum() {
 			checksumEnabled = false;
+		}
+		void enableBigPackets() {
+			bigPackets = true;
 		}
 
 		static bool RSA_decrypt(NetworkMessage& msg);
@@ -85,6 +92,7 @@ class Protocol : public std::enable_shared_from_this<Protocol>
 		bool encryptionEnabled = false;
 		bool checksumEnabled = true;
 		bool rawMessages = false;
+		bool bigPackets = false;
 };
 
 #endif
