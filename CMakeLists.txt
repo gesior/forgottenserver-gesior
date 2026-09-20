@@ -93,12 +93,57 @@ if (ENABLE_OTS_STATISTICS)
     add_definitions(-DSTATS_ENABLED)
 endif()
 
+# Linux process-allocator A/B. Default (both OFF) is glibc malloc.
+# Mutually exclusive; C++ new/delete override is only needed for mimalloc.
+#   cmake -DUSE_MIMALLOC=ON ...
+#   cmake -DUSE_JEMALLOC=ON ...
+# Same binary, no rebuild:
+#   LD_PRELOAD=libmimalloc.so.2 ./tfs
+#   LD_PRELOAD=libjemalloc.so.2 ./tfs
+#   LD_PRELOAD=libtcmalloc.so ./tfs
+# Measure (same map/load):
+#   perf record -g -p $(pidof tfs) -- sleep 60
+#   perf report / perf annotate on sendMagicEffect, malloc, operator new
+option(USE_MIMALLOC "Link mimalloc and override operator new/delete (Linux)" OFF)
+option(USE_JEMALLOC "Link jemalloc as the process allocator (Linux)" OFF)
+
+if (USE_MIMALLOC AND USE_JEMALLOC)
+    message(FATAL_ERROR "USE_MIMALLOC and USE_JEMALLOC are mutually exclusive")
+endif()
+
+if ((USE_MIMALLOC OR USE_JEMALLOC) AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "USE_MIMALLOC / USE_JEMALLOC are supported on Linux only")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(src)
 add_executable(tfs ${tfs_MAIN})
 target_link_libraries(tfs tfslib)
+
+if (USE_MIMALLOC)
+    find_package(mimalloc REQUIRED)
+    target_sources(tfs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/memory_allocator.cpp")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/memory_allocator.cpp"
+            PROPERTIES SKIP_PRECOMPILE_HEADERS ON SKIP_UNITY_BUILD_INCLUSION ON)
+    if (TARGET mimalloc)
+        target_link_libraries(tfs PRIVATE mimalloc)
+    elseif (TARGET mimalloc-static)
+        target_link_libraries(tfs PRIVATE mimalloc-static)
+    else ()
+        message(FATAL_ERROR "mimalloc was found but provides neither mimalloc nor mimalloc-static")
+    endif ()
+    message(STATUS "Process allocator: mimalloc")
+elseif (USE_JEMALLOC)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc)
+    # --as-needed would drop jemalloc if we never call je_* directly.
+    target_link_libraries(tfs PRIVATE "-Wl,--no-as-needed" PkgConfig::JEMALLOC "-Wl,--as-needed")
+    message(STATUS "Process allocator: jemalloc")
+else ()
+    message(STATUS "Process allocator: libc (default)")
+endif ()
 
 target_link_options(tfs PUBLIC -flto=auto)
 
