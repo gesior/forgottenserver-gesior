@@ -7,9 +7,9 @@
 #include "protocol.h"
 #include "chat.h"
 #include "creature.h"
+#include "networkmessage.h"
 #include "tasks.h"
 
-class NetworkMessage;
 class Player;
 class Game;
 class House;
@@ -64,6 +64,7 @@ class ProtocolGame final : public Protocol
 		void connect(uint32_t playerId, OperatingSystem_t operatingSystem);
 		void disconnectClient(const std::string& message) const;
 		void writeToOutputBuffer(const NetworkMessage& msg);
+		NetworkMessage& getSendMessage();
 
 		void release() override;
 
@@ -303,6 +304,7 @@ class ProtocolGame final : public Protocol
 		}
 
 		std::unordered_set<uint32_t> knownCreatureSet;
+		NetworkMessage sendMessage;
 		Player* player = nullptr;
 
 		uint32_t eventConnect = 0;

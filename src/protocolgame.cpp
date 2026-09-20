@@ -456,6 +456,12 @@ void ProtocolGame::writeToOutputBuffer(const NetworkMessage& msg)
 	out->append(msg);
 }
 
+NetworkMessage& ProtocolGame::getSendMessage()
+{
+	sendMessage.reset();
+	return sendMessage;
+}
+
 void ProtocolGame::parsePacket(NetworkMessage& msg)
 {
 	if (!acceptPackets || g_game.getGameState() == GAME_STATE_SHUTDOWN || msg.getLength() == 0) {
@@ -2327,7 +2333,7 @@ void ProtocolGame::sendMagicEffect(const Position& pos, uint8_t type)
 		return;
 	}
 
-	NetworkMessage msg;
+	NetworkMessage& msg = getSendMessage();
 	msg.addByte(0x83);
 	msg.addPosition(pos);
 	msg.addByte(type);
