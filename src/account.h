@@ -6,8 +6,20 @@
 
 #include "enums.h"
 
+struct AccountCharacter {
+	std::string name;
+	uint16_t lookType = 0;
+	uint8_t lookHead = 0;
+	uint8_t lookBody = 0;
+	uint8_t lookLegs = 0;
+	uint8_t lookFeet = 0;
+	uint8_t lookAddons = 0;
+	uint32_t level = 1;
+	uint16_t vocationId = 0;
+};
+
 struct Account {
-	std::vector<std::string> characters;
+	std::vector<AccountCharacter> characters;
 	std::string name;
 	std::string key;
 	uint32_t id = 0;

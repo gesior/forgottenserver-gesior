@@ -74,10 +74,20 @@ bool IOLoginData::loginserverAuthentication(const std::string& name, const std::
 	account.accountType = static_cast<AccountType_t>(result->getNumber<int32_t>("type"));
 	account.premiumEndsAt = result->getNumber<time_t>("premium_ends_at");
 
-	result = db.storeQuery(fmt::format("SELECT `name` FROM `players` WHERE `account_id` = {:d} AND `deletion` = 0 ORDER BY `name` ASC", account.id));
+	result = db.storeQuery(fmt::format("SELECT `name`, `looktype`, `lookhead`, `lookbody`, `looklegs`, `lookfeet`, `lookaddons`, `level`, `vocation` FROM `players` WHERE `account_id` = {:d} AND `deletion` = 0 ORDER BY `name` ASC", account.id));
 	if (result) {
 		do {
-			account.characters.push_back(result->getString("name"));
+			AccountCharacter character;
+			character.name = result->getString("name");
+			character.lookType = result->getNumber<uint16_t>("looktype");
+			character.lookHead = result->getNumber<uint8_t>("lookhead");
+			character.lookBody = result->getNumber<uint8_t>("lookbody");
+			character.lookLegs = result->getNumber<uint8_t>("looklegs");
+			character.lookFeet = result->getNumber<uint8_t>("lookfeet");
+			character.lookAddons = result->getNumber<uint8_t>("lookaddons");
+			character.level = result->getNumber<uint32_t>("level");
+			character.vocationId = result->getNumber<uint16_t>("vocation");
+			account.characters.push_back(std::move(character));
 		} while (result->next());
 	}
 	return true;

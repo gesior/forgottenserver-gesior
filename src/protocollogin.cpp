@@ -12,9 +12,11 @@
 #include "iologindata.h"
 #include "ban.h"
 #include "game.h"
+#include "vocation.h"
 
 extern ConfigManager g_config;
 extern Game g_game;
+extern Vocations g_vocations;
 
 void ProtocolLogin::disconnectClient(const std::string& message, uint16_t version)
 {
@@ -104,13 +106,25 @@ void ProtocolLogin::getCharacterList(const std::string& accountName, const std::
 
 	output->addByte(size);
 	for (uint8_t i = 0; i < size; i++) {
-		const std::string& character = account.characters[i];
+		const AccountCharacter& character = account.characters[i];
 		if (g_config.getBoolean(ConfigManager::ONLINE_OFFLINE_CHARLIST)) {
-			output->addByte(g_game.getPlayerByName(character) ? 1 : 0);
+			output->addByte(g_game.getPlayerByName(character.name) ? 1 : 0);
 		} else {
 			output->addByte(0);
 		}
-		output->addString(character);
+		output->addString(character.name);
+
+		// extended character info (custom client)
+		output->add<uint16_t>(character.lookType); // outfitid
+		output->addByte(character.lookHead); // headcolor
+		output->addByte(character.lookBody); // torsocolor
+		output->addByte(character.lookLegs); // legscolor
+		output->addByte(character.lookFeet); // detailcolor
+		output->addByte(character.lookAddons); // addonsflags
+		output->add<uint32_t>(character.level); // level
+
+		const Vocation* vocation = g_vocations.getVocation(character.vocationId);
+		output->addString(vocation ? vocation->getVocName() : "None"); // vocation
 	}
 
 	//Add premium days
