@@ -6,8 +6,8 @@
 class Task;
 
 struct Stat {
-	Stat(uint64_t _executionTime, const std::string& _description, const std::string& _extraDescription) :
-			executionTime(_executionTime), description(_description), extraDescription(_extraDescription) {};
+	Stat(uint64_t executionTime, std::string description, std::string extraDescription) :
+			executionTime(executionTime), description(std::move(description)), extraDescription(std::move(extraDescription)) {}
 	uint64_t executionTime = 0;
 	std::string description;
 	std::string extraDescription;
@@ -21,7 +21,14 @@ struct statsData {
 	std::string extraInfo;
 };
 
-using statsMap = std::map<std::string, statsData>;
+struct TransparentStringLess {
+	using is_transparent = void;
+	bool operator()(std::string_view lhs, std::string_view rhs) const {
+		return lhs < rhs;
+	}
+};
+
+using statsMap = std::map<std::string, statsData, TransparentStringLess>;
 
 class Stats : public ThreadHolder<Stats> {
 public:

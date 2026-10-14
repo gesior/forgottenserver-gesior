@@ -293,12 +293,12 @@ class ProtocolGame final : public Protocol
 
 		// Helpers so we don't need to bind every time
 		template <typename Callable, typename... Args>
-		void addGameTaskWithStats(Callable&& function, const std::string& function_str, const std::string& extra_info, Args&&... args) {
+		void addGameTaskWithStats(Callable&& function, const char* function_str, const char* extra_info, Args&&... args) {
 			g_dispatcher.addTask(createTaskWithStats(std::bind(std::forward<Callable>(function), &g_game, std::forward<Args>(args)...), function_str, extra_info));
 		}
 
 		template <typename Callable, typename... Args>
-		void addGameTaskTimedWithStats(uint32_t delay, Callable&& function, const std::string& function_str, const std::string& extra_info, Args&&... args) {
+		void addGameTaskTimedWithStats(uint32_t delay, Callable&& function, const char* function_str, const char* extra_info, Args&&... args) {
 			g_dispatcher.addTask(createTaskWithStats(delay, std::bind(std::forward<Callable>(function), &g_game, std::forward<Args>(args)...), function_str, extra_info));
 		}
 

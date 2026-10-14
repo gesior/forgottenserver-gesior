@@ -129,7 +129,10 @@ void Stats::parseDispatchersQueue(std::vector<std::forward_list<Task*>> queues)
 	int i = 0;
 	for (auto& dispatcher : dispatchers) {
 		for (Task* task : queues[i++]) {
-			auto it = dispatcher.stats.emplace(task->description, statsData(0, 0, task->extraDescription)).first;
+			auto it = dispatcher.stats.find(task->description);
+			if (it == dispatcher.stats.end()) {
+				it = dispatcher.stats.emplace(task->description, statsData(0, 0, task->extraDescription)).first;
+			}
 			it->second.calls += 1;
 			it->second.executionTime += task->executionTime;
 			if(VERY_SLOW_EXECUTION_TIME > 0 && task->executionTime > VERY_SLOW_EXECUTION_TIME) {
@@ -145,7 +148,10 @@ void Stats::parseDispatchersQueue(std::vector<std::forward_list<Task*>> queues)
 void Stats::parseLuaQueue(std::forward_list<Stat*>& queue)
 {
 	for (Stat* stats : queue) {
-		auto it = lua.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
+		auto it = lua.stats.find(stats->description);
+		if (it == lua.stats.end()) {
+			it = lua.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
+		}
 		it->second.calls += 1;
 		it->second.executionTime += stats->executionTime;
 
@@ -161,7 +167,10 @@ void Stats::parseLuaQueue(std::forward_list<Stat*>& queue)
 void Stats::parseSqlQueue(std::forward_list<Stat*>& queue)
 {
 	for (Stat* stats : queue) {
-		auto it = sql.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
+		auto it = sql.stats.find(stats->description);
+		if (it == sql.stats.end()) {
+			it = sql.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
+		}
 		it->second.calls += 1;
 		it->second.executionTime += stats->executionTime;
 
@@ -177,7 +186,10 @@ void Stats::parseSqlQueue(std::forward_list<Stat*>& queue)
 void Stats::parseSpecialQueue(std::forward_list<Stat*>& queue)
 {
 	for (Stat* stats : queue) {
-		auto it = special.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
+		auto it = special.stats.find(stats->description);
+		if (it == special.stats.end()) {
+			it = special.stats.emplace(stats->description, statsData(0, 0, stats->extraDescription)).first;
+		}
 		it->second.calls += 1;
 		it->second.executionTime += stats->executionTime;
 

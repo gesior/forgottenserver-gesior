@@ -29,9 +29,9 @@ class Task
 {
 	public:
 		// DO NOT allocate this class on the stack
-		explicit Task(TaskFunc&& f, const std::string& _description, const std::string& _extraDescription) :
+		explicit Task(TaskFunc&& f, const char* _description, const char* _extraDescription) :
 		func(std::move(f)), description(_description), extraDescription(_extraDescription) {}
-		Task(uint32_t ms, TaskFunc&& f, const std::string& _description, const std::string& _extraDescription) :
+		Task(uint32_t ms, TaskFunc&& f, const char* _description, const char* _extraDescription) :
 		expiration(std::chrono::system_clock::now() + std::chrono::milliseconds(ms)), func(std::move(f)), description(_description), extraDescription(_extraDescription) {}
 
 		virtual ~Task() = default;
@@ -55,13 +55,13 @@ class Task
 		// then it is the time the task should be added to the
 		// dispatcher
 		TaskFunc func;
-		const std::string description;
-		const std::string extraDescription;
+		const char* description;
+		const char* extraDescription;
 		uint64_t executionTime = 0;
 };
 
-Task* createTaskWithStats(TaskFunc&& f, const std::string& description, const std::string& extraDescription);
-Task* createTaskWithStats(uint32_t expiration, TaskFunc&& f, const std::string& description, const std::string& extraDescription);
+Task* createTaskWithStats(TaskFunc&& f, const char* description, const char* extraDescription);
+Task* createTaskWithStats(uint32_t expiration, TaskFunc&& f, const char* description, const char* extraDescription);
 
 class Dispatcher : public ThreadHolder<Dispatcher> {
 	public:

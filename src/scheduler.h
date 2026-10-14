@@ -24,16 +24,16 @@ class SchedulerTask : public Task
 			return delay;
 		}
 	private:
-		SchedulerTask(uint32_t delay, TaskFunc&& f, const std::string& description, const std::string& extraDescription) :
+		SchedulerTask(uint32_t delay, TaskFunc&& f, const char* description, const char* extraDescription) :
 		Task(std::move(f), description, extraDescription), delay(delay) {}
 
 		uint32_t eventId = 0;
 		uint32_t delay = 0;
 
-		friend SchedulerTask* createSchedulerTaskWithStats(uint32_t, TaskFunc&&, const std::string&, const std::string&);
+		friend SchedulerTask* createSchedulerTaskWithStats(uint32_t, TaskFunc&&, const char*, const char*);
 };
 
-SchedulerTask* createSchedulerTaskWithStats(uint32_t delay, TaskFunc&& f, const std::string& description, const std::string& extraDescription);
+SchedulerTask* createSchedulerTaskWithStats(uint32_t delay, TaskFunc&& f, const char* description, const char* extraDescription);
 
 class Scheduler : public ThreadHolder<Scheduler>
 {
