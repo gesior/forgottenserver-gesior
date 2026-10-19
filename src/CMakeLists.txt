@@ -63,7 +63,6 @@ set(tfs_SRC
 	${CMAKE_CURRENT_LIST_DIR}/signals.cpp
 	${CMAKE_CURRENT_LIST_DIR}/spawn.cpp
 	${CMAKE_CURRENT_LIST_DIR}/spells.cpp
-	${CMAKE_CURRENT_LIST_DIR}/stats.cpp
 	${CMAKE_CURRENT_LIST_DIR}/storeinbox.cpp
 	${CMAKE_CURRENT_LIST_DIR}/talkaction.cpp
 	${CMAKE_CURRENT_LIST_DIR}/tasks.cpp
@@ -77,6 +76,10 @@ set(tfs_SRC
 	${CMAKE_CURRENT_LIST_DIR}/wildcardtree.cpp
 	${CMAKE_CURRENT_LIST_DIR}/xtea.cpp
 )
+
+if(ENABLE_OTS_STATISTICS)
+	list(APPEND tfs_SRC ${CMAKE_CURRENT_LIST_DIR}/stats.cpp)
+endif()
 
 set(tfs_HDR
 		${CMAKE_CURRENT_LIST_DIR}/otpch.h

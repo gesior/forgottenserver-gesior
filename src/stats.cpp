@@ -1,6 +1,6 @@
-#include <fstream>
-
 #include "otpch.h"
+
+#ifdef STATS_ENABLED
 
 #include "configmanager.h"
 #include "stats.h"
@@ -9,9 +9,9 @@
 
 extern ConfigManager g_config;
 
-int64_t Stats::DUMP_INTERVAL = 30000; // 30 sec
-uint32_t Stats::SLOW_EXECUTION_TIME = 10000000; // 10 ms
-uint32_t Stats::VERY_SLOW_EXECUTION_TIME = 50000000; // 50 ms
+int64_t Stats::DUMP_INTERVAL = 30000;
+uint32_t Stats::SLOW_EXECUTION_TIME = 10000000;
+uint32_t Stats::VERY_SLOW_EXECUTION_TIME = 50000000;
 
 AutoStatRecursive* AutoStatRecursive::activeStat = nullptr;
 
@@ -256,3 +256,5 @@ void Stats::writeStats(const std::string& file, const statsMap& stats, const std
 	out.flush();
 	out.close();
 }
+
+#endif

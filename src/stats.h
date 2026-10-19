@@ -1,6 +1,8 @@
 #ifndef TFS_STATS_H
 #define TFS_STATS_H
 
+#ifdef STATS_ENABLED
+
 #include "thread_holder_base.h"
 
 class Task;
@@ -111,5 +113,7 @@ private:
 	static AutoStatRecursive* activeStat;
 	AutoStatRecursive* parent;
 };
+
+#endif
 
 #endif

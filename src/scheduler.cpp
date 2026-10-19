@@ -63,7 +63,14 @@ void Scheduler::shutdown()
 	});
 }
 
+#ifdef STATS_ENABLED
 SchedulerTask* createSchedulerTaskWithStats(uint32_t delay, TaskFunc&& f, const char* description, const char* extraDescription)
 {
 	return new SchedulerTask(delay, std::move(f), description, extraDescription);
 }
+#else
+SchedulerTask* createSchedulerTask(uint32_t delay, TaskFunc&& f)
+{
+	return new SchedulerTask(delay, std::move(f));
+}
+#endif
