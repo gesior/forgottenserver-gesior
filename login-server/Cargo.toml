@@ -1,0 +1,22 @@
+[package]
+name = "login-server"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-only"
+publish = false
+
+[dependencies]
+anyhow = "1"
+arc-swap = "1"
+chrono = "0.4"
+dashmap = "6"
+futures = "0.3"
+hmac = "0.12"
+openssl = "0.10"
+serde = { version = "1", features = ["derive"] }
+sha1 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "mysql", "chrono"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
