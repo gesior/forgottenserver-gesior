@@ -764,6 +764,7 @@ dependencies = [
  "openssl",
  "serde",
  "sha1",
+ "socket2",
  "sqlx",
  "tokio",
  "toml",

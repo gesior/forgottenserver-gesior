@@ -19,7 +19,29 @@ Każdy `UPDATE` hasła, secretu albo `premium_ends_at` (także z strony konta) s
 
 Bany IP i numer MOTD (`server_config.motd_num`) są odświeżane tym samym pollerem. Login ich nie czyta z bazy.
 
-## Budowanie w Dockerze
+## Uruchomienie obok serwera gry
+
+Z katalogu repozytorium. Oba kontenery łączą się z MySQL na hoście (`host.docker.internal`). Serwer gry słucha 7171/7172, login Rust na 7173 z `crypto_threads = 4`.
+
+```powershell
+docker compose up -d --build
+```
+
+Benchmark tworzy 50 tys. kont i 150 tys. postaci, potem przez 10 sekund mierzy logowania na istniejące i nieistniejące konto. Klient używa 12 wątków. Usługa `bench` nie startuje razem z serwerami.
+
+```powershell
+docker compose --profile bench run --rm bench
+```
+
+Profil `bench-hot` robi ten sam pomiar, ale logowania na istniejące konto kręcą się tylko po pierwszych 100 kontach z 50 tysięcy. Spis postaci tych kont zostaje w cache.
+
+```powershell
+docker compose --profile bench-hot run --rm bench-hot
+```
+
+Wynik to cztery liczby logowań na sekundę: Rust i OTS, osobno dla konta istniejącego (po rozgrzaniu cache spisu postaci) i dla nazwy, której nie ma w bazie.
+
+## Budowanie samego obrazu logowania
 
 Z katalogu repozytorium, kontekstem jest sam `login-server` (obraz testuje kod i zostawia binarkę):
 
@@ -31,7 +53,7 @@ docker build -f login-server/Dockerfile -t ots-login-server login-server
 
 ## Uruchomienie
 
-Skopiuj `config.toml.example` do `config.toml` i wpisz dane MySQL oraz ten sam klucz RSA co serwer gry.
+`docker compose` używa gotowego [config.toml](config.toml) (4 wątki, baza `compilation` na `host.docker.internal`). Osobny `docker run` może wziąć `config.toml.example` i ten sam klucz RSA co serwer gry.
 
 Lokalnie, z katalogu `login-server` (ścieżka `../key.pem`):
 

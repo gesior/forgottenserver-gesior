@@ -15,8 +15,20 @@ hmac = "0.12"
 openssl = "0.10"
 serde = { version = "1", features = ["derive"] }
 sha1 = "0.10"
+socket2 = "0.6"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "mysql", "chrono"] }
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "login-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "login-bench"
+path = "src/bin/login-bench.rs"

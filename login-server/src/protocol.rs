@@ -287,6 +287,84 @@ pub fn write_string(out: &mut Vec<u8>, value: &[u8]) {
     out.extend_from_slice(&value[..len]);
 }
 
+/// Client login frame: `u16` length plus checksummed 10.98 payload.
+/// The XTEA key inside the first RSA block is `1, 2, 3, 4`.
+pub fn build_login_frame(rsa: &crypto::RsaKey, account: &[u8], password: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let mut first = vec![0u8];
+    for word in [1u32, 2, 3, 4] {
+        first.extend_from_slice(&word.to_le_bytes());
+    }
+    write_string(&mut first, account);
+    write_string(&mut first, password);
+    let mut second = vec![0u8];
+    write_string(&mut second, b"");
+
+    let enc1 = rsa.encrypt_block(&fit_rsa_block(&first))?;
+    let enc2 = rsa.encrypt_block(&fit_rsa_block(&second))?;
+    let mut payload = Vec::with_capacity(1 + 2 + 2 + 17 + RSA_BLOCK * 2);
+    payload.push(0x01);
+    payload.extend_from_slice(&2u16.to_le_bytes());
+    payload.extend_from_slice(&1098u16.to_le_bytes());
+    payload.extend(std::iter::repeat(0).take(17));
+    payload.extend_from_slice(&enc1);
+    payload.extend_from_slice(&enc2);
+
+    let mut body = Vec::with_capacity(4 + payload.len());
+    body.extend_from_slice(&crypto::adler32(&payload).to_le_bytes());
+    body.extend_from_slice(&payload);
+    let mut frame = Vec::with_capacity(2 + body.len());
+    frame.extend_from_slice(&(body.len() as u16).to_le_bytes());
+    frame.extend_from_slice(&body);
+    Ok(frame)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginOutcome {
+    CharacterList,
+    Rejected,
+}
+
+/// `packet` is a full server reply, including the leading `u16` length.
+/// The XTEA key must be the one embedded by [`build_login_frame`].
+pub fn classify_sealed(packet: &[u8], key: &[u32; 4]) -> Option<LoginOutcome> {
+    if packet.len() < 8 {
+        return None;
+    }
+    let declared = u16::from_le_bytes(packet[0..2].try_into().ok()?) as usize;
+    if declared < 4 || declared + 2 > packet.len() {
+        return None;
+    }
+    let encrypted = &packet[6..2 + declared];
+    if encrypted.is_empty() || encrypted.len() % 8 != 0 {
+        return None;
+    }
+    let sum = u32::from_le_bytes(packet[2..6].try_into().ok()?);
+    if crypto::adler32(encrypted) != sum {
+        return None;
+    }
+    let mut data = encrypted.to_vec();
+    crypto::xtea_decrypt(&mut data, &crypto::expand_key(*key));
+    if data.len() < 2 {
+        return None;
+    }
+    let inner = u16::from_le_bytes(data[0..2].try_into().ok()?) as usize;
+    if inner == 0 || 2 + inner > data.len() {
+        return None;
+    }
+    match data[2] {
+        0x0A | 0x0B => Some(LoginOutcome::Rejected),
+        0x0C | 0x14 | 0x28 | 0x64 => Some(LoginOutcome::CharacterList),
+        _ => None,
+    }
+}
+
+fn fit_rsa_block(content: &[u8]) -> [u8; RSA_BLOCK] {
+    let mut plain = [0u8; RSA_BLOCK];
+    let n = content.len().min(RSA_BLOCK);
+    plain[..n].copy_from_slice(&content[..n]);
+    plain
+}
+
 fn world_ip<'a>(cfg: &'a Config, parts: &ResponseParts) -> &'a str {
     if parts.otc_proxy {
         "127.0.0.1"
@@ -639,5 +717,32 @@ database = "forgottenserver"
         assert_eq!(&opened[..2], &[0x0C, 0x00]);
         assert!(opened.windows(7).any(|window| window == b"Offline"));
         assert!(opened.windows(9).any(|window| window == b"127.0.0.1"));
+    }
+
+    #[test]
+    fn login_frame_authenticates_and_sealed_reply_classifies() {
+        let cfg = cfg("online");
+        let snap = account_snapshot("secret");
+        let frame = build_login_frame(key(), b"admin", b"secret").unwrap();
+        let phase = authenticate(
+            &frame[2..],
+            ConnMeta { ip: 0, otc_proxy: false, ha_proxy: false },
+            &cfg,
+            key(),
+            &snap,
+        );
+        let Phase1::NeedList { parts, .. } = phase else {
+            panic!("framed login was not accepted");
+        };
+        let packet = seal_character_list(&cfg, &snap, &parts, &["Beta".to_owned()]);
+        assert_eq!(
+            classify_sealed(&packet, &[1, 2, 3, 4]),
+            Some(LoginOutcome::CharacterList)
+        );
+        let rejected = seal_xtea(&error_body(1098, "Account name or password is not correct."), &parts.round_keys);
+        assert_eq!(
+            classify_sealed(&rejected, &[1, 2, 3, 4]),
+            Some(LoginOutcome::Rejected)
+        );
     }
 }

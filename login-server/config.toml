@@ -1,0 +1,31 @@
+bind = "0.0.0.0:7173"
+rsa_key_file = "/key.pem"
+crypto_threads = 4
+max_pending_logins = 4096
+allow_otc_proxy = false
+allow_haproxy = false
+
+[server]
+name = "Forgotten"
+ip = "127.0.0.1"
+status_ip = ""
+game_port = 7172
+motd = "Welcome to The Forgotten Server!"
+free_premium = false
+status = "online"
+client_version_min = 1097
+client_version_max = 1098
+client_version_string = "10.98"
+show_online_status = false
+
+[mysql]
+host = "host.docker.internal"
+port = 3306
+user = "root"
+password = "root"
+database = "compilation"
+
+[cache]
+account_poll_interval_seconds = 1
+account_reconcile_interval_seconds = 60
+character_list_ttl_seconds = 30

@@ -10,3 +10,69 @@ services:
     ports:
       - "7171:7171"
       - "7172:7172"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  login:
+    image: ots-login-server
+    build:
+      context: ./login-server
+    restart: always
+    ports:
+      - "7173:7173"
+    volumes:
+      - ./key.pem:/key.pem:ro
+      - ./login-server/config.toml:/config.toml:ro
+    command: ["/config.toml"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  bench:
+    profiles: ["bench"]
+    image: ots-login-server
+    build:
+      context: ./login-server
+    entrypoint: ["login-bench"]
+    cpus: "12"
+    depends_on:
+      - server
+      - login
+    volumes:
+      - ./key.pem:/key.pem:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: compilation
+      BENCH_RUST: login:7173
+      BENCH_OTS: server:7171
+      RSA_KEY_FILE: /key.pem
+      BENCH_CYCLE: "0"
+
+  bench-hot:
+    profiles: ["bench-hot"]
+    image: ots-login-server
+    build:
+      context: ./login-server
+    entrypoint: ["login-bench"]
+    cpus: "12"
+    depends_on:
+      - server
+      - login
+    volumes:
+      - ./key.pem:/key.pem:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: compilation
+      BENCH_RUST: login:7173
+      BENCH_OTS: server:7171
+      RSA_KEY_FILE: /key.pem
+      BENCH_CYCLE: "100"

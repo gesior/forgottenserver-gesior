@@ -1,24 +1,17 @@
 // Copyright 2026 The Forgotten Server Authors. All rights reserved.
 // Use of this source code is governed by the GPL-2.0 License that can be found in the LICENSE file.
 
-mod cache;
-mod config;
-mod crypto;
-mod db;
-mod protocol;
-mod server;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch;
 use tracing_subscriber::EnvFilter;
 
-use crate::cache::{AccountCache, CharListCache, Stats};
-use crate::config::Config;
-use crate::crypto::RsaKey;
-use crate::db::{Database, SyncCursor};
-use crate::server::{AppState, CryptoPool, WorkerState};
+use login_server::cache::{AccountCache, CharListCache, Stats};
+use login_server::config::Config;
+use login_server::crypto::RsaKey;
+use login_server::db::{Database, SyncCursor};
+use login_server::server::{serve, AppState, CryptoPool, WorkerState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -70,8 +63,8 @@ async fn main() -> anyhow::Result<()> {
         crypto,
     });
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
-    let server = tokio::spawn(server::serve(state, shutdown_rx.clone()));
-    let poller = tokio::spawn(db::run_poller(
+    let server = tokio::spawn(serve(state, shutdown_rx.clone()));
+    let poller = tokio::spawn(login_server::db::run_poller(
         database,
         accounts,
         characters,

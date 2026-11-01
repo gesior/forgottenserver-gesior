@@ -59,7 +59,6 @@ impl RsaKey {
         Some(out)
     }
 
-    #[cfg(test)]
     pub fn encrypt_block(&self, plain: &[u8; RSA_BLOCK]) -> anyhow::Result<[u8; RSA_BLOCK]> {
         let mut buf = [0u8; RSA_BLOCK];
         let written = self
