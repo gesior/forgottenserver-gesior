@@ -273,7 +273,7 @@ bool ConfigManager::load()
 	integer[VIP_PREMIUM_LIMIT] = getGlobalNumber(L, "vipPremiumLimit", 100);
 	integer[DEPOT_FREE_LIMIT] = getGlobalNumber(L, "depotFreeLimit", 2000);
 	integer[DEPOT_PREMIUM_LIMIT] = getGlobalNumber(L, "depotPremiumLimit", 10000);
-	integer[STATS_DUMP_INTERVAL] = getGlobalNumber(L, "statsDumpInterval", 30000);
+	integer[STATS_DUMP_INTERVAL] = getGlobalNumber(L, "statsDumpInterval", 30);
 	integer[STATS_SLOW_LOG_TIME] = getGlobalNumber(L, "statsSlowLogTime", 10);
 	integer[STATS_VERY_SLOW_LOG_TIME] = getGlobalNumber(L, "statsVerySlowLogTime", 50);
 	integer[DECAY_ITEMS_EVENT_INTERVAL] = getGlobalNumber(L, "decayItemsEventInterval", 50);

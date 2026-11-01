@@ -13,12 +13,6 @@
 #define createSchedulerTask(delay, function) createSchedulerTaskWithStats(delay, function, #function, __FUNCTION__)
 #define addGameTask(function, ...) addGameTaskWithStats(function, #function, __FUNCTION__, __VA_ARGS__)
 #define addGameTaskTimed(delay, function, ...) addGameTaskTimedWithStats(delay, function, #function, __FUNCTION__, __VA_ARGS__)
-#else
-#define createTask(function) createTaskWithStats(function, "", "")
-#define createTimedTask(delay, function) createTaskWithStats(delay, function, "", "")
-#define createSchedulerTask(delay, function) createSchedulerTaskWithStats(delay, function, "", "")
-#define addGameTask(function, ...) addGameTaskWithStats(function, "", "", __VA_ARGS__)
-#define addGameTaskTimed(delay, function, ...) addGameTaskTimedWithStats(delay, function, "", "", __VA_ARGS__)
 #endif
 
 using TaskFunc = std::function<void(void)>;
@@ -29,10 +23,16 @@ class Task
 {
 	public:
 		// DO NOT allocate this class on the stack
-		explicit Task(TaskFunc&& f, const std::string& _description, const std::string& _extraDescription) :
-		func(std::move(f)), description(_description), extraDescription(_extraDescription) {}
-		Task(uint32_t ms, TaskFunc&& f, const std::string& _description, const std::string& _extraDescription) :
-		expiration(std::chrono::system_clock::now() + std::chrono::milliseconds(ms)), func(std::move(f)), description(_description), extraDescription(_extraDescription) {}
+#ifdef STATS_ENABLED
+		explicit Task(TaskFunc&& f, const char* _description, const char* _extraDescription) :
+			func(std::move(f)), description(_description), extraDescription(_extraDescription) {}
+		Task(uint32_t ms, TaskFunc&& f, const char* _description, const char* _extraDescription) :
+			expiration(std::chrono::system_clock::now() + std::chrono::milliseconds(ms)), func(std::move(f)), description(_description), extraDescription(_extraDescription) {}
+#else
+		explicit Task(TaskFunc&& f) : func(std::move(f)) {}
+		Task(uint32_t ms, TaskFunc&& f) :
+			expiration(std::chrono::system_clock::now() + std::chrono::milliseconds(ms)), func(std::move(f)) {}
+#endif
 
 		virtual ~Task() = default;
 		void operator()() {
@@ -55,20 +55,29 @@ class Task
 		// then it is the time the task should be added to the
 		// dispatcher
 		TaskFunc func;
-		const std::string description;
-		const std::string extraDescription;
+#ifdef STATS_ENABLED
+		const char* description;
+		const char* extraDescription;
 		uint64_t executionTime = 0;
+#endif
 };
 
-Task* createTaskWithStats(TaskFunc&& f, const std::string& description, const std::string& extraDescription);
-Task* createTaskWithStats(uint32_t expiration, TaskFunc&& f, const std::string& description, const std::string& extraDescription);
+#ifdef STATS_ENABLED
+Task* createTaskWithStats(TaskFunc&& f, const char* description, const char* extraDescription);
+Task* createTaskWithStats(uint32_t expiration, TaskFunc&& f, const char* description, const char* extraDescription);
+#else
+Task* createTask(TaskFunc&& f);
+Task* createTimedTask(uint32_t expiration, TaskFunc&& f);
+#endif
 
 class Dispatcher : public ThreadHolder<Dispatcher> {
 	public:
 		Dispatcher() : ThreadHolder() {
+#ifdef STATS_ENABLED
 			static int id = 0;
 			dispatcherId = id;
 			id += 1;
+#endif
 		}
 		void addTask(Task* task);
 
@@ -86,7 +95,9 @@ class Dispatcher : public ThreadHolder<Dispatcher> {
 
 		std::vector<Task*> taskList;
 		uint64_t dispatcherCycle = 0;
+#ifdef STATS_ENABLED
 		int dispatcherId = 0;
+#endif
 };
 
 extern Dispatcher g_dispatcher;

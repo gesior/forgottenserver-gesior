@@ -11,15 +11,27 @@
 
 extern Game g_game;
 
-Task* createTaskWithStats(TaskFunc&& f, const std::string& description, const std::string& extraDescription)
+#ifdef STATS_ENABLED
+Task* createTaskWithStats(TaskFunc&& f, const char* description, const char* extraDescription)
 {
 	return new Task(std::move(f), description, extraDescription);
 }
 
-Task* createTaskWithStats(uint32_t expiration, TaskFunc&& f, const std::string& description, const std::string& extraDescription)
+Task* createTaskWithStats(uint32_t expiration, TaskFunc&& f, const char* description, const char* extraDescription)
 {
 	return new Task(expiration, std::move(f), description, extraDescription);
 }
+#else
+Task* createTask(TaskFunc&& f)
+{
+	return new Task(std::move(f));
+}
+
+Task* createTimedTask(uint32_t expiration, TaskFunc&& f)
+{
+	return new Task(expiration, std::move(f));
+}
+#endif
 
 void Dispatcher::threadMain()
 {

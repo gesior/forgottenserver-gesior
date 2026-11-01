@@ -292,15 +292,27 @@ class ProtocolGame final : public Protocol
 		friend class Player;
 
 		// Helpers so we don't need to bind every time
+#ifdef STATS_ENABLED
 		template <typename Callable, typename... Args>
-		void addGameTaskWithStats(Callable&& function, const std::string& function_str, const std::string& extra_info, Args&&... args) {
+		void addGameTaskWithStats(Callable&& function, const char* function_str, const char* extra_info, Args&&... args) {
 			g_dispatcher.addTask(createTaskWithStats(std::bind(std::forward<Callable>(function), &g_game, std::forward<Args>(args)...), function_str, extra_info));
 		}
 
 		template <typename Callable, typename... Args>
-		void addGameTaskTimedWithStats(uint32_t delay, Callable&& function, const std::string& function_str, const std::string& extra_info, Args&&... args) {
+		void addGameTaskTimedWithStats(uint32_t delay, Callable&& function, const char* function_str, const char* extra_info, Args&&... args) {
 			g_dispatcher.addTask(createTaskWithStats(delay, std::bind(std::forward<Callable>(function), &g_game, std::forward<Args>(args)...), function_str, extra_info));
 		}
+#else
+		template <typename Callable, typename... Args>
+		void addGameTask(Callable&& function, Args&&... args) {
+			g_dispatcher.addTask(createTask(std::bind(std::forward<Callable>(function), &g_game, std::forward<Args>(args)...)));
+		}
+
+		template <typename Callable, typename... Args>
+		void addGameTaskTimed(uint32_t delay, Callable&& function, Args&&... args) {
+			g_dispatcher.addTask(createTimedTask(delay, std::bind(std::forward<Callable>(function), &g_game, std::forward<Args>(args)...)));
+		}
+#endif
 
 		std::unordered_set<uint32_t> knownCreatureSet;
 		Player* player = nullptr;

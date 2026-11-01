@@ -24,16 +24,29 @@ class SchedulerTask : public Task
 			return delay;
 		}
 	private:
-		SchedulerTask(uint32_t delay, TaskFunc&& f, const std::string& description, const std::string& extraDescription) :
-		Task(std::move(f), description, extraDescription), delay(delay) {}
+#ifdef STATS_ENABLED
+		SchedulerTask(uint32_t delay, TaskFunc&& f, const char* description, const char* extraDescription) :
+			Task(std::move(f), description, extraDescription), delay(delay) {}
+#else
+		SchedulerTask(uint32_t delay, TaskFunc&& f) :
+			Task(std::move(f)), delay(delay) {}
+#endif
 
 		uint32_t eventId = 0;
 		uint32_t delay = 0;
 
-		friend SchedulerTask* createSchedulerTaskWithStats(uint32_t, TaskFunc&&, const std::string&, const std::string&);
+#ifdef STATS_ENABLED
+		friend SchedulerTask* createSchedulerTaskWithStats(uint32_t, TaskFunc&&, const char*, const char*);
+#else
+		friend SchedulerTask* createSchedulerTask(uint32_t, TaskFunc&&);
+#endif
 };
 
-SchedulerTask* createSchedulerTaskWithStats(uint32_t delay, TaskFunc&& f, const std::string& description, const std::string& extraDescription);
+#ifdef STATS_ENABLED
+SchedulerTask* createSchedulerTaskWithStats(uint32_t delay, TaskFunc&& f, const char* description, const char* extraDescription);
+#else
+SchedulerTask* createSchedulerTask(uint32_t delay, TaskFunc&& f);
+#endif
 
 class Scheduler : public ThreadHolder<Scheduler>
 {
