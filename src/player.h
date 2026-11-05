@@ -20,6 +20,7 @@
 #include "town.h"
 #include "mounts.h"
 #include "storeinbox.h"
+#include "casts.h"
 
 
 class House;
@@ -94,6 +95,15 @@ using MuteCountMap = std::map<uint32_t, uint32_t>;
 
 static constexpr int32_t PLAYER_MAX_SPEED = 1500;
 static constexpr int32_t PLAYER_MIN_SPEED = 10;
+
+#define BROADCAST_CAST(statement) \
+	do { \
+		if (castHasViewers) { \
+			for (const auto& viewer : Casts::getViewerProtocols(this)) { \
+				statement; \
+			} \
+		} \
+	} while (false)
 
 class Player final : public Creature, public Cylinder
 {
@@ -676,6 +686,7 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendCreatureSkull(creature);
 			}
+			BROADCAST_CAST(viewer->sendCreatureSkull(creature));
 		}
 		void checkSkullTicks(int64_t ticks);
 
@@ -692,67 +703,104 @@ class Player final : public Creature, public Cylinder
 		//tile
 		//send methods
 		void sendAddTileItem(const Tile* tile, const Position& pos, const Item* item) {
-			if (client) {
-				int32_t stackpos = tile->getStackposOfItem(this, item);
-				if (stackpos != -1) {
+			if (!client && !castHasViewers) {
+				return;
+			}
+
+			int32_t stackpos = tile->getStackposOfItem(this, item);
+			if (stackpos != -1) {
+				if (client) {
 					client->sendAddTileItem(pos, stackpos, item);
 				}
+				BROADCAST_CAST(viewer->sendAddTileItem(pos, stackpos, item));
 			}
 		}
 		void sendUpdateTileItem(const Tile* tile, const Position& pos, const Item* item) {
-			if (client) {
-				int32_t stackpos = tile->getStackposOfItem(this, item);
-				if (stackpos != -1) {
+			if (!client && !castHasViewers) {
+				return;
+			}
+
+			int32_t stackpos = tile->getStackposOfItem(this, item);
+			if (stackpos != -1) {
+				if (client) {
 					client->sendUpdateTileItem(pos, stackpos, item);
 				}
+				BROADCAST_CAST(viewer->sendUpdateTileItem(pos, stackpos, item));
 			}
 		}
 		void sendRemoveTileThing(const Position& pos, int32_t stackpos) {
-			if (stackpos != -1 && client) {
-				client->sendRemoveTileThing(pos, stackpos);
+			if (stackpos != -1) {
+				if (client) {
+					client->sendRemoveTileThing(pos, stackpos);
+				}
+				BROADCAST_CAST(viewer->sendRemoveTileThing(pos, stackpos));
 			}
 		}
 		void sendUpdateTileCreature(const Creature* creature) {
-			if (client) {
-				client->sendUpdateTileCreature(creature->getPosition(), creature->getTile()->getClientIndexOfCreature(this, creature), creature);
+			if (!client && !castHasViewers) {
+				return;
 			}
+
+			uint32_t stackpos = creature->getTile()->getClientIndexOfCreature(this, creature);
+			if (client) {
+				client->sendUpdateTileCreature(creature->getPosition(), stackpos, creature);
+			}
+			BROADCAST_CAST(viewer->sendUpdateTileCreature(creature->getPosition(), stackpos, creature));
 		}
 		void sendRemoveTileCreature(const Creature* creature, const Position& pos, int32_t stackpos) {
 			if (client) {
 				client->sendRemoveTileCreature(creature, pos, stackpos);
 			}
+			BROADCAST_CAST(viewer->sendRemoveTileCreature(creature, pos, stackpos));
 		}
 		void sendUpdateTile(const Tile* tile, const Position& pos) {
 			if (client) {
 				client->sendUpdateTile(tile, pos);
 			}
+			BROADCAST_CAST(viewer->sendUpdateTile(tile, pos));
 		}
 
 		void sendChannelMessage(const std::string& author, const std::string& text, SpeakClasses type, uint16_t channel) {
 			if (client) {
 				client->sendChannelMessage(author, text, type, channel);
 			}
+			BROADCAST_CAST(viewer->sendChannelMessage(author, text, type, channel));
 		}
 		void sendChannelEvent(uint16_t channelId, const std::string& playerName, ChannelEvent_t channelEvent) {
 			if (client) {
 				client->sendChannelEvent(channelId, playerName, channelEvent);
 			}
+			BROADCAST_CAST(viewer->sendChannelEvent(channelId, playerName, channelEvent));
 		}
 		void sendCreatureAppear(const Creature* creature, const Position& pos, bool isLogin) {
-			if (client) {
-				client->sendAddCreature(creature, pos, creature->getTile()->getClientIndexOfCreature(this, creature), isLogin);
+			if (!client && !castHasViewers) {
+				return;
 			}
+
+			int32_t stackpos = creature->getTile()->getClientIndexOfCreature(this, creature);
+			if (client) {
+				client->sendAddCreature(creature, pos, stackpos, isLogin);
+			}
+			BROADCAST_CAST(viewer->sendAddCreature(creature, pos, stackpos, isLogin));
 		}
 		void sendCreatureMove(const Creature* creature, const Position& newPos, int32_t newStackPos, const Position& oldPos, int32_t oldStackPos, bool teleport) {
 			if (client) {
 				client->sendMoveCreature(creature, newPos, newStackPos, oldPos, oldStackPos, teleport);
 			}
+			BROADCAST_CAST(viewer->sendMoveCreature(creature, newPos, newStackPos, oldPos, oldStackPos, teleport));
 		}
 		void sendCreatureTurn(const Creature* creature) {
-			if (client && canSeeCreature(creature)) {
+			if (!client && !castHasViewers) {
+				return;
+			}
+
+			if (canSeeCreature(creature)) {
 				int32_t stackpos = creature->getTile()->getClientIndexOfCreature(this, creature);
 				if (stackpos != -1) {
-					client->sendCreatureTurn(creature, stackpos);
+					if (client) {
+						client->sendCreatureTurn(creature, stackpos);
+					}
+					BROADCAST_CAST(viewer->sendCreatureTurn(creature, stackpos));
 				}
 			}
 		}
@@ -760,36 +808,49 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendCreatureSay(creature, type, text, pos);
 			}
+			BROADCAST_CAST(viewer->sendCreatureSay(creature, type, text, pos));
 		}
 		void sendPrivateMessage(const Player* speaker, SpeakClasses type, const std::string& text) {
 			if (client) {
 				client->sendPrivateMessage(speaker, type, text);
 			}
+			BROADCAST_CAST(viewer->sendPrivateMessage(speaker, type, text));
 		}
 		void sendCreatureSquare(const Creature* creature, SquareColor_t color) {
 			if (client) {
 				client->sendCreatureSquare(creature, color);
 			}
+			BROADCAST_CAST(viewer->sendCreatureSquare(creature, color));
 		}
 		void sendCreatureChangeOutfit(const Creature* creature, const Outfit_t& outfit) {
 			if (client) {
 				client->sendCreatureOutfit(creature, outfit);
 			}
+			BROADCAST_CAST(viewer->sendCreatureOutfit(creature, outfit));
 		}
 		void sendCreatureChangeVisible(const Creature* creature, bool visible) {
-			if (!client) {
+			if (!client && !castHasViewers) {
 				return;
 			}
 
 			if (creature->getPlayer()) {
 				if (visible) {
-					client->sendCreatureOutfit(creature, creature->getCurrentOutfit());
+					if (client) {
+						client->sendCreatureOutfit(creature, creature->getCurrentOutfit());
+					}
+					BROADCAST_CAST(viewer->sendCreatureOutfit(creature, creature->getCurrentOutfit()));
 				} else {
 					static Outfit_t outfit;
-					client->sendCreatureOutfit(creature, outfit);
+					if (client) {
+						client->sendCreatureOutfit(creature, outfit);
+					}
+					BROADCAST_CAST(viewer->sendCreatureOutfit(creature, outfit));
 				}
 			} else if (canSeeInvisibility()) {
-				client->sendCreatureOutfit(creature, creature->getCurrentOutfit());
+				if (client) {
+					client->sendCreatureOutfit(creature, creature->getCurrentOutfit());
+				}
+				BROADCAST_CAST(viewer->sendCreatureOutfit(creature, creature->getCurrentOutfit()));
 			} else {
 				int32_t stackpos = creature->getTile()->getClientIndexOfCreature(this, creature);
 				if (stackpos == -1) {
@@ -797,9 +858,15 @@ class Player final : public Creature, public Cylinder
 				}
 
 				if (visible) {
-					client->sendAddCreature(creature, creature->getPosition(), stackpos, false);
+					if (client) {
+						client->sendAddCreature(creature, creature->getPosition(), stackpos, false);
+					}
+					BROADCAST_CAST(viewer->sendAddCreature(creature, creature->getPosition(), stackpos, false));
 				} else {
-					client->sendRemoveTileCreature(creature, creature->getPosition(), stackpos);
+					if (client) {
+						client->sendRemoveTileCreature(creature, creature->getPosition(), stackpos);
+					}
+					BROADCAST_CAST(viewer->sendRemoveTileCreature(creature, creature->getPosition(), stackpos));
 				}
 			}
 		}
@@ -807,36 +874,43 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendCreatureLight(creature);
 			}
+			BROADCAST_CAST(viewer->sendCreatureLight(creature));
 		}
 		void sendCreatureWalkthrough(const Creature* creature, bool walkthrough) {
 			if (client) {
 				client->sendCreatureWalkthrough(creature, walkthrough);
 			}
+			BROADCAST_CAST(viewer->sendCreatureWalkthrough(creature, walkthrough));
 		}
 		void sendCreatureShield(const Creature* creature) {
 			if (client) {
 				client->sendCreatureShield(creature);
 			}
+			BROADCAST_CAST(viewer->sendCreatureShield(creature));
 		}
 		void sendCreatureType(uint32_t creatureId, uint8_t creatureType) {
 			if (client) {
 				client->sendCreatureType(creatureId, creatureType);
 			}
+			BROADCAST_CAST(viewer->sendCreatureType(creatureId, creatureType));
 		}
 		void sendCreatureHelpers(uint32_t creatureId, uint16_t helpers) {
 			if (client) {
 				client->sendCreatureHelpers(creatureId, helpers);
 			}
+			BROADCAST_CAST(viewer->sendCreatureHelpers(creatureId, helpers));
 		}
 		void sendSpellCooldown(uint8_t spellId, uint32_t time) {
 			if (client) {
 				client->sendSpellCooldown(spellId, time);
 			}
+			BROADCAST_CAST(viewer->sendSpellCooldown(spellId, time));
 		}
 		void sendSpellGroupCooldown(SpellGroup_t groupId, uint32_t time) {
 			if (client) {
 				client->sendSpellGroupCooldown(groupId, time);
 			}
+			BROADCAST_CAST(viewer->sendSpellGroupCooldown(groupId, time));
 		}
 		void sendModalWindow(const ModalWindow& modalWindow);
 
@@ -848,6 +922,7 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendContainer(cid, container, hasParent, firstIndex);
 			}
+			BROADCAST_CAST(viewer->sendContainer(cid, container, hasParent, firstIndex));
 		}
 
 		//inventory
@@ -855,11 +930,13 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendInventoryItem(slot, item);
 			}
+			BROADCAST_CAST(viewer->sendInventoryItem(slot, item));
 		}
 		void sendItems() {
 			if (client) {
 				client->sendItems();
 			}
+			BROADCAST_CAST(viewer->sendItems());
 		}
 
 		//event methods
@@ -893,12 +970,14 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendTextMessage(TextMessage(MESSAGE_STATUS_SMALL, msg));
 			}
+			BROADCAST_CAST(viewer->sendTextMessage(TextMessage(MESSAGE_STATUS_SMALL, msg)));
 		}
 		void sendCancelMessage(ReturnValue message) const;
 		void sendCancelTarget() const {
 			if (client) {
 				client->sendCancelTarget();
 			}
+			BROADCAST_CAST(viewer->sendCancelTarget());
 		}
 		void sendCancelWalk() const {
 			if (client) {
@@ -909,33 +988,44 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendChangeSpeed(creature, newSpeed);
 			}
+			BROADCAST_CAST(viewer->sendChangeSpeed(creature, newSpeed));
 		}
 		void sendCreatureHealth(const Creature* creature) const {
 			if (client) {
 				client->sendCreatureHealth(creature);
 			}
+			BROADCAST_CAST(viewer->sendCreatureHealth(creature));
 		}
 		void sendDistanceShoot(const Position& from, const Position& to, unsigned char type) const {
 			if (client) {
 				client->sendDistanceShoot(from, to, type);
 			}
+			BROADCAST_CAST(viewer->sendDistanceShoot(from, to, type));
 		}
 		void sendHouseWindow(House* house, uint32_t listId) const;
 		void sendCreatePrivateChannel(uint16_t channelId, const std::string& channelName) {
 			if (client) {
 				client->sendCreatePrivateChannel(channelId, channelName);
 			}
+			BROADCAST_CAST(viewer->sendCreatePrivateChannel(channelId, channelName));
 		}
 		void sendClosePrivate(uint16_t channelId);
 		void sendIcons() const {
-			if (client) {
-				client->sendIcons(getClientIcons());
+			if (!client && !castHasViewers) {
+				return;
 			}
+
+			uint16_t icons = getClientIcons();
+			if (client) {
+				client->sendIcons(icons);
+			}
+			BROADCAST_CAST(viewer->sendIcons(icons));
 		}
 		void sendMagicEffect(const Position& pos, uint8_t type) const {
 			if (client) {
 				client->sendMagicEffect(pos, type);
 			}
+			BROADCAST_CAST(viewer->sendMagicEffect(pos, type));
 		}
 		void sendPing();
 		void sendPingBack() const {
@@ -948,21 +1038,25 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendBasicData();
 			}
+			BROADCAST_CAST(viewer->sendBasicData());
 		}
 		void sendSkills() const {
 			if (client) {
 				client->sendSkills();
 			}
+			BROADCAST_CAST(viewer->sendSkills());
 		}
 		void sendTextMessage(MessageClasses mclass, const std::string& message) const {
 			if (client) {
 				client->sendTextMessage(TextMessage(mclass, message));
 			}
+			BROADCAST_CAST(viewer->sendTextMessage(TextMessage(mclass, message)));
 		}
 		void sendTextMessage(const TextMessage& message) const {
 			if (client) {
 				client->sendTextMessage(message);
 			}
+			BROADCAST_CAST(viewer->sendTextMessage(message));
 		}
 		void sendReLoginWindow(uint8_t unfairFightReduction) const {
 			if (client) {
@@ -983,6 +1077,7 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendToChannel(creature, type, text, channelId);
 			}
+			BROADCAST_CAST(viewer->sendToChannel(creature, type, text, channelId));
 		}
 		void sendShop(Npc* npc) const {
 			if (client) {
@@ -1054,6 +1149,7 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendWorldLight(lightInfo);
 			}
+			BROADCAST_CAST(viewer->sendWorldLight(lightInfo));
 		}
 		void sendChannelsDialog() {
 			if (client) {
@@ -1074,12 +1170,14 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendCloseContainer(cid);
 			}
+			BROADCAST_CAST(viewer->sendCloseContainer(cid));
 		}
 
 		void sendChannel(uint16_t channelId, const std::string& channelName, const UsersMap* channelUsers, const InvitedMap* invitedUsers) {
 			if (client) {
 				client->sendChannel(channelId, channelName, channelUsers, invitedUsers);
 			}
+			BROADCAST_CAST(viewer->sendChannel(channelId, channelName, channelUsers, invitedUsers));
 		}
 		void sendTutorial(uint8_t tutorialId) {
 			if (client) {
@@ -1110,11 +1208,19 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendFightModes();
 			}
+			BROADCAST_CAST(viewer->sendFightModes());
 		}
 		void sendNetworkMessage(const NetworkMessage& message) {
 			if (client) {
 				client->writeToOutputBuffer(message);
 			}
+		}
+
+		bool hasCastViewers() const {
+			return castHasViewers;
+		}
+		void setHasCastViewers(bool value) {
+			castHasViewers = value;
 		}
 
 		void receivePing() {
@@ -1313,6 +1419,8 @@ class Player final : public Creature, public Cylinder
 		bool isConnecting = false;
 		bool addAttackSkillPoint = false;
 		bool inventoryAbilities[CONST_SLOT_LAST + 1] = {};
+		int32_t lastSavedCastViewers = -2;
+		bool castHasViewers = false;
 
 		static uint32_t playerAutoID;
 
@@ -1357,5 +1465,7 @@ class Player final : public Creature, public Cylinder
 		friend class IOLoginData;
 		friend class ProtocolGame;
 };
+
+#undef BROADCAST_CAST
 
 #endif

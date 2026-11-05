@@ -229,6 +229,7 @@ bool ConfigManager::load()
 	boolean[ALLOW_OTC_PROXY] = getGlobalBoolean(L, "allowOtcProxy", false);
 	boolean[ALLOW_HAPROXY] = getGlobalBoolean(L, "allowHaProxy", false);
 	boolean[ENABLE_LUA_DEBUG_COMMAND] = getGlobalBoolean(L, "enableLuaDebugCommand", false);
+	boolean[CAST_ENABLED] = getGlobalBoolean(L, "castEnabled", true);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");
@@ -239,6 +240,7 @@ bool ConfigManager::load()
 	string[MOTD] = getGlobalString(L, "motd", "");
 	string[WORLD_TYPE] = getGlobalString(L, "worldType", "pvp");
 	string[STATUS_IP] = getGlobalString(L, "statusIp", "");
+	string[CAST_ADMIN_PASSWORD] = getGlobalString(L, "castAdminPassword", "");
 
 	integer[MAX_PLAYERS] = getGlobalNumber(L, "maxPlayers");
 	integer[PZ_LOCKED] = getGlobalNumber(L, "pzLocked", 60000);
@@ -278,6 +280,8 @@ bool ConfigManager::load()
 	integer[STATS_VERY_SLOW_LOG_TIME] = getGlobalNumber(L, "statsVerySlowLogTime", 50);
 	integer[DECAY_ITEMS_EVENT_INTERVAL] = getGlobalNumber(L, "decayItemsEventInterval", 50);
 	integer[DECAY_ITEMS_PER_EVENT_LIMIT] = getGlobalNumber(L, "decayItemsPerEventLimit", 1000);
+	integer[CAST_MAX_VIEWERS] = getGlobalNumber(L, "castMaxViewers", 250);
+	integer[CAST_MAX_VIEWERS_PER_CAST] = getGlobalNumber(L, "castMaxViewersPerCast", 50);
 
 	expStages = loadXMLStages();
 	if (expStages.empty()) {

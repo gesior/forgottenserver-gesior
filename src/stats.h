@@ -52,6 +52,7 @@ public:
 	static int64_t DUMP_INTERVAL;
 
 	std::atomic<uint32_t> playersOnline;
+	std::atomic<uint32_t> castViewers;
 
 private:
 	void parseDispatchersQueue(std::vector<std::forward_list<Task*>> queues);

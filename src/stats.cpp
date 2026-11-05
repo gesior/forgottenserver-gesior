@@ -21,6 +21,7 @@ void Stats::threadMain()
 	bool last_iteration = false;
 	lua.lastDump = sql.lastDump = special.lastDump = OTSYS_TIME();
 	playersOnline = 0;
+	castViewers = 0;
 	for (auto& dispatcher : dispatchers) {
 		dispatcher.waitTime = 0;
 		dispatcher.lastDump = OTSYS_TIME();
@@ -66,7 +67,7 @@ void Stats::threadMain()
 				ss << "Thread: " << ++threadId << " Cpu usage: " << (execution_time / 10000.) / static_cast<float>(DUMP_INTERVAL) << "%" <<
 				   " Idle: " << (dispatcher.waitTime / 10000.) / static_cast<float>(DUMP_INTERVAL) << "%" <<
 				   " Other: " << 100. - (((execution_time + dispatcher.waitTime) / 10000.) / static_cast<float>(DUMP_INTERVAL)) << "%";
-				ss << " Players online: " << playersOnline << "\n";
+				ss << " Players online: " << playersOnline << " Viewers: " << castViewers << "\n";
 				if(dispatcher.waitTime > 0)
 					writeStats("dispatcher.log", dispatcher.stats, ss.str());
 				dispatcher.stats.clear();

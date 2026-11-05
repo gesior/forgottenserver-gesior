@@ -55,6 +55,7 @@ class ConfigManager
 			ALLOW_OTC_PROXY,
 			ALLOW_HAPROXY,
 			ENABLE_LUA_DEBUG_COMMAND,
+			CAST_ENABLED,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};
@@ -79,6 +80,7 @@ class ConfigManager
 			MAP_AUTHOR,
 			CONFIG_FILE,
 			STATUS_IP,
+			CAST_ADMIN_PASSWORD,
 
 			LAST_STRING_CONFIG /* this must be the last one */
 		};
@@ -127,6 +129,8 @@ class ConfigManager
 			STATS_VERY_SLOW_LOG_TIME,
 			DECAY_ITEMS_EVENT_INTERVAL,
 			DECAY_ITEMS_PER_EVENT_LIMIT,
+			CAST_MAX_VIEWERS,
+			CAST_MAX_VIEWERS_PER_CAST,
 
 			LAST_INTEGER_CONFIG /* this must be the last one */
 		};

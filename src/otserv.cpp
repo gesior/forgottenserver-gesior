@@ -217,6 +217,8 @@ void mainLoader(int, char*[], ServiceManager* services)
 
 	DatabaseManager::updateDatabase();
 
+	g_databaseTasks.addTask("UPDATE `players` SET `cast_viewers` = -1 WHERE `cast_viewers` != -1");
+
 	if (g_config.getBoolean(ConfigManager::OPTIMIZE_DATABASE) && !DatabaseManager::optimizeTables()) {
 		std::cout << "> No tables were optimized." << std::endl;
 	}

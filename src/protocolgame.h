@@ -57,6 +57,31 @@ class ProtocolGame final : public Protocol
 			return version;
 		}
 
+		bool isCastViewer() const {
+			return isCast;
+		}
+		bool isCastAdminViewer() const {
+			return isCastAdmin;
+		}
+		bool isProtocolReleased() const {
+			return isReleased;
+		}
+		Player* getCurrentCastTarget() const {
+			return player;
+		}
+		int64_t getLastCastSwitchTime() const {
+			return lastCastSwitchTime;
+		}
+		void setLastCastSwitchTime(int64_t time) {
+			lastCastSwitchTime = time;
+		}
+		void setCastTarget(Player* newTarget);
+		void switchCastTarget(Player* newTarget);
+		void disconnectCastViewer(const std::string& message);
+		void sendCastSystemMessage(MessageClasses type, const std::string& message) {
+			sendTextMessage(TextMessage(type, message));
+		}
+
 	private:
 		ProtocolGame_ptr getThis() {
 			return std::static_pointer_cast<ProtocolGame>(shared_from_this());
@@ -289,7 +314,18 @@ class ProtocolGame final : public Protocol
 		//otclient
 		void parseExtendedOpcode(NetworkMessage& msg);
 
+		void loginCast(const std::string& targetName, const std::string& password, bool adminMode);
+		void sendCastWorldState();
+		void syncOpenCastChannels();
+		void closeOpenedCastChannels();
+		void handleCastSay(const std::string& text);
+		void handleCastPingBack();
+		void handleCastCancelWalk();
+		void handleCastDisconnect();
+		bool canViewerSeeChannel(uint16_t channelId) const;
+
 		friend class Player;
+		friend class Casts;
 
 		// Helpers so we don't need to bind every time
 #ifdef STATS_ENABLED
@@ -325,6 +361,12 @@ class ProtocolGame final : public Protocol
 
 		bool debugAssertSent = false;
 		bool acceptPackets = false;
+
+		std::unordered_set<uint16_t> openedCastChannels;
+		int64_t lastCastSwitchTime = 0;
+		bool isCast = false;
+		bool isCastAdmin = false;
+		bool isReleased = false;
 };
 
 #endif

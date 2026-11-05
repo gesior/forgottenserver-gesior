@@ -7,6 +7,7 @@
 
 #include "actions.h"
 #include "bed.h"
+#include "casts.h"
 #include "configmanager.h"
 #include "creature.h"
 #include "creatureevent.h"
@@ -123,6 +124,8 @@ void Game::setGameState(GameState_t newState)
 		case GAME_STATE_SHUTDOWN: {
 			g_globalEvents->execute(GLOBALEVENT_SHUTDOWN);
 
+			Casts::disconnectAllViewers(true, "Server is shutting down.");
+
 			//kick all players that are still online
 			auto it = players.begin();
 			while (it != players.end()) {
@@ -146,6 +149,8 @@ void Game::setGameState(GameState_t newState)
 		}
 
 		case GAME_STATE_CLOSED: {
+			Casts::disconnectAllViewers(false, "Server is closed.");
+
 			/* kick all players without the CanAlwaysLogin flag */
 			auto it = players.begin();
 			while (it != players.end()) {
@@ -3750,6 +3755,7 @@ void Game::checkCreatures(size_t index)
 
 #ifdef STATS_ENABLED
 	g_stats.playersOnline = getPlayersOnline();
+	g_stats.castViewers = Casts::getTotalPublicViewers();
 #endif
 }
 

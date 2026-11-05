@@ -1051,6 +1051,10 @@ class LuaScriptInterface
 
 		static int luaPlayerGetStoreInbox(lua_State* L);
 
+		static int luaPlayerSetCastBroadcast(lua_State* L);
+		static int luaPlayerIsCastBroadcasting(lua_State* L);
+		static int luaPlayerGetCastViewerCount(lua_State* L);
+
 		// Monster
 		static int luaMonsterCreate(lua_State* L);
 
