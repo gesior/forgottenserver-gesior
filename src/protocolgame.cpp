@@ -351,8 +351,6 @@ void ProtocolGame::loginCast(const std::string& targetName, const std::string& p
 		return;
 	}
 
-	isCast = true;
-	isCastAdmin = adminMode;
 	setCastTarget(target);
 
 	if (!Casts::addViewer(target, getThis(), adminMode)) {
@@ -444,7 +442,13 @@ void ProtocolGame::sendCastWorldState()
 
 void ProtocolGame::switchCastTarget(Player* newTarget)
 {
-	if (isReleased || isConnectionExpired() || !newTarget || newTarget->isRemoved()) {
+	if (!newTarget || newTarget->isRemoved()) {
+		setCastTarget(nullptr);
+		return;
+	}
+
+	setCastTarget(newTarget);
+	if (isReleased || isConnectionExpired()) {
 		return;
 	}
 
@@ -453,16 +457,16 @@ void ProtocolGame::switchCastTarget(Player* newTarget)
 	}
 	closeOpenedCastChannels();
 
-	setCastTarget(newTarget);
 	sendCastWorldState();
 }
 
 void ProtocolGame::disconnectCastViewer(const std::string& message)
 {
+	isReleased = true;
 	setCastTarget(nullptr);
 	acceptPackets = false;
-	if (OutputMessage_ptr pending = getCurrentBuffer()) {
-		send(pending);
+	if (auto& pending = getCurrentBuffer()) {
+		send(std::move(pending));
 	}
 	disconnectClient(message);
 }
@@ -650,6 +654,8 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg)
 			disconnectClient("Leave password empty to watch casts.");
 			return;
 		}
+		isCast = true;
+		isCastAdmin = adminMode;
 		g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::loginCast, getThis(), characterName, password, adminMode)));
 		return;
 	}

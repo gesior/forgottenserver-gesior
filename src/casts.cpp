@@ -380,7 +380,7 @@ CastLoginStatus Casts::canJoinCast(const Player* target, bool isAdmin, const std
 	}
 
 	if (target) {
-		if (target->isRemoved()) {
+		if (target->isRemoved() || (!isBroadcasting(target) && target->isInGhostMode())) {
 			errorMessage = "Target player is offline.";
 			return CastLoginStatus::TargetOffline;
 		}
