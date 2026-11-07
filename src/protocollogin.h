@@ -29,6 +29,7 @@ class ProtocolLogin : public Protocol
 
 		void getCharacterList(const std::string& accountName, const std::string& password, const std::string& token, uint16_t version);
 		void getCastsList(const std::string& accountName, const std::string& password, uint16_t version);
+		void getCamsList(const std::string& accountName, const std::string& password, uint16_t version);
 };
 
 #endif

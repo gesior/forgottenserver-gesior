@@ -83,6 +83,75 @@ bool IOLoginData::loginserverAuthentication(const std::string& name, const std::
 	return true;
 }
 
+namespace {
+
+constexpr uint32_t CAM_LIST_HARD_LIMIT = 255;
+
+constexpr std::string_view CAM_SELECT =
+	"SELECT `m`.`id` AS `id`, `m`.`player_level` AS `player_level`, `m`.`date_start` AS `date_start`, `m`.`title` AS `title`, `p`.`name` AS `name`, `p`.`vocation` AS `vocation` "
+	"FROM `cams` AS `m` "
+	"LEFT JOIN `players` AS `p` ON `p`.`id` = `m`.`player_id` ";
+
+std::vector<AccountCam> readCams(DBResult_ptr result)
+{
+	std::vector<AccountCam> cams;
+	if (!result) {
+		return cams;
+	}
+
+	do {
+		AccountCam cam;
+		cam.id = result->getNumber<uint32_t>("id");
+		cam.level = result->getNumber<uint32_t>("player_level");
+		cam.dateStart = result->getNumber<time_t>("date_start");
+		cam.playerName = result->getString("name");
+		cam.title = result->getString("title");
+		cam.vocationId = result->getNumber<uint16_t>("vocation");
+		cams.push_back(std::move(cam));
+	} while (result->next());
+
+	return cams;
+}
+
+} // namespace
+
+std::vector<AccountCam> IOLoginData::getAccountCams(uint32_t accountId, uint32_t limit)
+{
+	if (limit == 0) {
+		return {};
+	}
+
+	limit = std::min<uint32_t>(limit, CAM_LIST_HARD_LIMIT);
+	return readCams(Database::getInstance().storeQuery(fmt::format(
+		"{:s}WHERE `m`.`account_id` = {:d} ORDER BY `m`.`date_start` DESC, `m`.`id` DESC LIMIT {:d}",
+		CAM_SELECT, accountId, limit)));
+}
+
+std::vector<AccountCam> IOLoginData::getPublicCams(uint64_t page, uint32_t pageSize)
+{
+	if (page < 1 || pageSize == 0) {
+		return {};
+	}
+
+	const uint32_t limit = std::min<uint32_t>(pageSize, CAM_LIST_HARD_LIMIT);
+	const uint64_t offset = (page - 1) * limit;
+	return readCams(Database::getInstance().storeQuery(fmt::format(
+		"{:s}WHERE `m`.`public` = 1 ORDER BY `m`.`date_start` DESC, `m`.`id` DESC LIMIT {:d} OFFSET {:d}",
+		CAM_SELECT, limit, offset)));
+}
+
+std::vector<AccountCam> IOLoginData::getCamsByAccessCode(const std::string& accessCode)
+{
+	if (accessCode.empty()) {
+		return {};
+	}
+
+	Database& db = Database::getInstance();
+	return readCams(db.storeQuery(fmt::format(
+		"{:s}WHERE `m`.`access_code` = {:s} ORDER BY `m`.`date_start` DESC, `m`.`id` DESC LIMIT {:d}",
+		CAM_SELECT, db.escapeString(accessCode), CAM_LIST_HARD_LIMIT)));
+}
+
 uint32_t IOLoginData::gameworldAuthentication(const std::string& accountName, const std::string& password, std::string& characterName, std::string& token, uint32_t tokenTime)
 {
 	Database& db = Database::getInstance();

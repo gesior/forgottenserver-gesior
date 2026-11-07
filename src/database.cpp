@@ -183,20 +183,39 @@ DBResult_ptr Database::storeQuery(std::string_view query)
 
 std::string Database::escapeBlob(const char* s, uint32_t length) const
 {
-	// the worst case is 2n + 1
-	size_t maxLength = (length * 2) + 1;
-
-	std::string escaped;
-	escaped.reserve(maxLength + 2);
-	escaped.push_back('\'');
-
-	if (length != 0) {
-		char* output = new char[maxLength];
-		mysql_real_escape_string(handle.get(), output, s, length);
-		escaped.append(output);
-		delete[] output;
+	if (length == 0 || !s) {
+		return "''";
 	}
 
+	// the worst case is 2n + 1
+	const size_t maxLength = static_cast<size_t>(length) * 2 + 1;
+
+	constexpr size_t STACK_BUFFER_SIZE = 512;
+	char stackBuffer[STACK_BUFFER_SIZE];
+	std::unique_ptr<char[]> heapBuffer;
+	char* output = stackBuffer;
+	if (maxLength > STACK_BUFFER_SIZE) {
+		heapBuffer.reset(new char[maxLength]);
+		output = heapBuffer.get();
+	}
+
+	unsigned long written;
+	{
+		std::lock_guard<std::recursive_mutex> lockGuard(databaseLock);
+		if (!handle) {
+			return "''";
+		}
+		written = mysql_real_escape_string(handle.get(), output, s, length);
+		if (written == std::numeric_limits<unsigned long>::max() || written >= maxLength) {
+			std::cout << "[Error - Database::escapeBlob] mysql_real_escape_string failed: " << mysql_error(handle.get()) << std::endl;
+			return "''";
+		}
+	}
+
+	std::string escaped;
+	escaped.reserve(static_cast<size_t>(written) + 2);
+	escaped.push_back('\'');
+	escaped.append(output, written);
 	escaped.push_back('\'');
 	return escaped;
 }

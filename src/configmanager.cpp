@@ -4,6 +4,7 @@
 #include "otpch.h"
 
 #include "configmanager.h"
+#include "cams.h"
 #include "casts.h"
 #include "game.h"
 #include "monster.h"
@@ -187,6 +188,8 @@ bool ConfigManager::load()
 		integer[STATUS_PORT] = getGlobalNumber(L, "statusProtocolPort", 7171);
 
 		integer[MARKET_OFFER_DURATION] = getGlobalNumber(L, "marketOfferDuration", 30 * 24 * 60 * 60);
+
+		string[CAMS_DIR] = getGlobalString(L, "camsDir", "cams/");
 	}
 
 	boolean[ALLOW_CHANGEOUTFIT] = getGlobalBoolean(L, "allowChangeOutfit", true);
@@ -231,6 +234,9 @@ bool ConfigManager::load()
 	boolean[ALLOW_HAPROXY] = getGlobalBoolean(L, "allowHaProxy", false);
 	boolean[ENABLE_LUA_DEBUG_COMMAND] = getGlobalBoolean(L, "enableLuaDebugCommand", false);
 	boolean[CAST_ENABLED] = getGlobalBoolean(L, "castEnabled", true);
+	boolean[CAMS_ENABLED] = getGlobalBoolean(L, "camsEnabled", false);
+	boolean[CAMS_INCOMING_PACKETS] = getGlobalBoolean(L, "camsIncomingPackets", true);
+	boolean[CAM_REMOVE_ON_CRASH] = getGlobalBoolean(L, "camRemoveOnCrash", true);
 
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");
@@ -242,6 +248,7 @@ bool ConfigManager::load()
 	string[WORLD_TYPE] = getGlobalString(L, "worldType", "pvp");
 	string[STATUS_IP] = getGlobalString(L, "statusIp", "");
 	string[CAST_ADMIN_PASSWORD] = getGlobalString(L, "castAdminPassword", "");
+	string[CAM_PLAYER_IP] = getGlobalString(L, "camPlayerIp", "");
 
 	integer[MAX_PLAYERS] = getGlobalNumber(L, "maxPlayers");
 	integer[PZ_LOCKED] = getGlobalNumber(L, "pzLocked", 60000);
@@ -283,6 +290,15 @@ bool ConfigManager::load()
 	integer[DECAY_ITEMS_PER_EVENT_LIMIT] = getGlobalNumber(L, "decayItemsPerEventLimit", 1000);
 	integer[CAST_MAX_VIEWERS] = getGlobalNumber(L, "castMaxViewers", 250);
 	integer[CAST_MAX_VIEWERS_PER_CAST] = getGlobalNumber(L, "castMaxViewersPerCast", 50);
+	integer[CAMS_BUFFER_SIZE] = std::max<int32_t>(1, getGlobalNumber(L, "camsBufferSize", 100));
+	integer[CAMS_SAVE_INTERVAL] = std::max<int32_t>(1, getGlobalNumber(L, "camsSaveInterval", 30));
+	integer[CAMS_SYNC_INTERVAL] = std::max<int32_t>(0, getGlobalNumber(L, "camsSyncInterval", 0));
+	const int32_t camsMaxDuration = getGlobalNumber(L, "camsMaxDuration", 60 * 60);
+	integer[CAMS_MAX_DURATION] = camsMaxDuration > 0 ? std::max<int32_t>(10, camsMaxDuration) : 0;
+	integer[CAMS_MAX_TOTAL_RAM] = std::max<int32_t>(10, getGlobalNumber(L, "camsMaxTotalRam", 512));
+	integer[CAMS_MAX_QUEUE_RAM] = std::max<int32_t>(5, getGlobalNumber(L, "camsMaxQueueRam", 128));
+	integer[CAM_PLAYER_PORT] = std::clamp<int32_t>(getGlobalNumber(L, "camPlayerPort", 7173), 0, 65535);
+	integer[CAM_ACCOUNT_LIST_SIZE] = std::clamp<int32_t>(getGlobalNumber(L, "camAccountListSize", 5), 0, 255);
 
 	expStages = loadXMLStages();
 	if (expStages.empty()) {
@@ -301,8 +317,11 @@ bool ConfigManager::load()
 bool ConfigManager::reload()
 {
 	bool result = load();
-	if (result && !getBoolean(CAST_ENABLED)) {
-		Casts::disablePublicCasts();
+	if (result) {
+		if (!getBoolean(CAST_ENABLED)) {
+			Casts::disablePublicCasts();
+		}
+		g_cams.onConfigReload();
 	}
 	if (transformToSHA1(getString(ConfigManager::MOTD)) != g_game.getMotdHash()) {
 		g_game.incrementMotdNum();

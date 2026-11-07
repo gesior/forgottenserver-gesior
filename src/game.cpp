@@ -7,6 +7,7 @@
 
 #include "actions.h"
 #include "bed.h"
+#include "cams.h"
 #include "casts.h"
 #include "configmanager.h"
 #include "creature.h"
@@ -4709,6 +4710,8 @@ void Game::shutdown()
 	ConnectionManager::getInstance().closeAll();
 
 	std::cout << " done!" << std::endl;
+
+	g_cams.shutdown();
 }
 
 void Game::cleanup()

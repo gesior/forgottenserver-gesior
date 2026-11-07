@@ -10,10 +10,22 @@
 
 using ItemBlockList = std::list<std::pair<int32_t, Item*>>;
 
+struct AccountCam {
+	uint32_t id = 0;
+	uint32_t level = 0;
+	time_t dateStart = 0;
+	std::string playerName;
+	std::string title;
+	uint16_t vocationId = 0;
+};
+
 class IOLoginData
 {
 	public:
 		static Account loadAccount(uint32_t accno);
+		static std::vector<AccountCam> getAccountCams(uint32_t accountId, uint32_t limit);
+		static std::vector<AccountCam> getPublicCams(uint64_t page, uint32_t pageSize);
+		static std::vector<AccountCam> getCamsByAccessCode(const std::string& accessCode);
 
 		static bool loginserverAuthentication(const std::string& name, const std::string& password, Account& account);
 		static uint32_t gameworldAuthentication(const std::string& accountName, const std::string& password, std::string& characterName, std::string& token, uint32_t tokenTime);

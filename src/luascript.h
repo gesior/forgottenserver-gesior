@@ -689,6 +689,7 @@ class LuaScriptInterface
 		static int luaNetworkMessageLength(lua_State* L);
 		static int luaNetworkMessageSkipBytes(lua_State* L);
 		static int luaNetworkMessageSendToPlayer(lua_State* L);
+		static int luaNetworkMessageAddCustomDataToCam(lua_State* L);
 
 		// ModalWindow
 		static int luaModalWindowCreate(lua_State* L);

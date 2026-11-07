@@ -4,6 +4,7 @@ set(tfs_SRC
 	${CMAKE_CURRENT_LIST_DIR}/ban.cpp
 	${CMAKE_CURRENT_LIST_DIR}/baseevents.cpp
 	${CMAKE_CURRENT_LIST_DIR}/bed.cpp
+	${CMAKE_CURRENT_LIST_DIR}/cams.cpp
 	${CMAKE_CURRENT_LIST_DIR}/casts.cpp
 	${CMAKE_CURRENT_LIST_DIR}/chat.cpp
 	${CMAKE_CURRENT_LIST_DIR}/combat.cpp
@@ -89,6 +90,7 @@ set(tfs_HDR
 		${CMAKE_CURRENT_LIST_DIR}/ban.h
 		${CMAKE_CURRENT_LIST_DIR}/baseevents.h
 		${CMAKE_CURRENT_LIST_DIR}/bed.h
+		${CMAKE_CURRENT_LIST_DIR}/cams.h
 		${CMAKE_CURRENT_LIST_DIR}/casts.h
 		${CMAKE_CURRENT_LIST_DIR}/chat.h
 		${CMAKE_CURRENT_LIST_DIR}/combat.h

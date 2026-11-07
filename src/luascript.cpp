@@ -2213,6 +2213,7 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("NetworkMessage", "len", LuaScriptInterface::luaNetworkMessageLength);
 	registerMethod("NetworkMessage", "skipBytes", LuaScriptInterface::luaNetworkMessageSkipBytes);
 	registerMethod("NetworkMessage", "sendToPlayer", LuaScriptInterface::luaNetworkMessageSendToPlayer);
+	registerMethod("NetworkMessage", "addCustomDataToCam", LuaScriptInterface::luaNetworkMessageAddCustomDataToCam);
 
 	// ModalWindow
 	registerClass("ModalWindow", "", LuaScriptInterface::luaModalWindowCreate);
@@ -5986,6 +5987,26 @@ int LuaScriptInterface::luaNetworkMessageSendToPlayer(lua_State* L)
 	Player* player = getPlayer(L, 2);
 	if (player) {
 		player->sendNetworkMessage(*message);
+		pushBoolean(L, true);
+	} else {
+		reportErrorFunc(L, getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int LuaScriptInterface::luaNetworkMessageAddCustomDataToCam(lua_State* L)
+{
+	// networkMessage:addCustomDataToCam(player)
+	NetworkMessage* message = getUserdata<NetworkMessage>(L, 1);
+	if (!message) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	Player* player = getPlayer(L, 2);
+	if (player) {
+		player->addCustomDataToCam(*message);
 		pushBoolean(L, true);
 	} else {
 		reportErrorFunc(L, getErrorDesc(LUA_ERROR_PLAYER_NOT_FOUND));

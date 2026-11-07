@@ -49,6 +49,7 @@ class ProtocolGame final : public Protocol
 		}
 
 		explicit ProtocolGame(Connection_ptr connection) : Protocol(connection) {}
+		~ProtocolGame() override;
 
 		void login(const std::string& name, uint32_t accountId, OperatingSystem_t operatingSystem);
 		void logout(bool displayEffect, bool forced);
@@ -84,6 +85,7 @@ class ProtocolGame final : public Protocol
 		void sendCastSystemMessage(MessageClasses type, const std::string& message) {
 			sendTextMessage(TextMessage(type, message));
 		}
+		void addCustomDataToCam(const NetworkMessage& msg) const;
 
 	private:
 		ProtocolGame_ptr getThis() {
@@ -327,6 +329,14 @@ class ProtocolGame final : public Protocol
 		void handleCastDisconnect();
 		bool canViewerSeeChannel(uint16_t channelId) const;
 
+		void checkCamSync();
+		void rotateCam(uint64_t activeCamId, int64_t fallbackNowMs);
+		void writeCamSyncSnapshot(uint64_t activeCamId, uint64_t syncTimestampMs);
+		void populateCamSnapshot(const std::unordered_set<uint32_t>& savedKnownCreatures);
+		void syncCamKnownCreatures(const std::unordered_set<uint32_t>& targetKnownSet);
+		void prepareCamSyncTileOnPlayerPos(const Tile* tile, const Position& playerPos);
+		void addCamDummyCreature(NetworkMessage& msg, uint32_t creatureId, uint32_t removedKnown);
+
 		friend class Player;
 		friend class Casts;
 
@@ -371,6 +381,12 @@ class ProtocolGame final : public Protocol
 		bool isCastAdmin = false;
 		std::string castPassword;
 		bool isReleased = false;
+
+		std::atomic<uint64_t> camId{0};
+		std::vector<std::vector<uint8_t>> camSyncBatch;
+		int64_t camStartMs = 0;
+		int64_t lastCamSyncMs = 0;
+		uint8_t camCapturePacketType = 0;
 };
 
 #endif

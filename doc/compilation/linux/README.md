@@ -11,6 +11,8 @@ On Linux, run only those lines that start with `RUN` in the `Dockerfile`. The ot
 
 **If you want to run the server using docker, use `Dockerfile` and `docker-compose.yaml` from the main project folder.**
 
+That compose file starts only the game server. Cam Mover and Cam Player are optional; how to start them is in [tools/README.md](../../../tools/README.md).
+
 _**TODO:** documentation on how docker-compose works on Windows (shared localhost etc.)._
 
 ### Test builds on Linux using docker

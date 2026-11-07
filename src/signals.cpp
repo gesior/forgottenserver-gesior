@@ -24,6 +24,7 @@
 #ifdef STATS_ENABLED
 #include "stats.h"
 #endif
+#include "cams.h"
 
 extern Scheduler g_scheduler;
 extern DatabaseTasks g_databaseTasks;
@@ -165,6 +166,7 @@ void dispatchSignalHandler(int signal)
 #ifdef STATS_ENABLED
 			g_stats.join();
 #endif
+			g_cams.join();
 			break;
 #endif
 		default:

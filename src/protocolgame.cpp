@@ -17,6 +17,7 @@
 #include "iologindata.h"
 #include "iomarket.h"
 #include "ban.h"
+#include "cams.h"
 #include "casts.h"
 #include "scheduler.h"
 
@@ -26,6 +27,22 @@ extern CreatureEvents* g_creatureEvents;
 extern Chat* g_chat;
 
 namespace {
+
+constexpr size_t MAX_CAM_SYNC_COALESCE_PAYLOAD = std::min<size_t>({
+	static_cast<size_t>(NetworkMessage::MAX_PROTOCOL_BODY_LENGTH),
+	static_cast<size_t>(NetworkMessage::MAX_BODY_LENGTH - NetworkMessage::INITIAL_BUFFER_POSITION - NetworkMessage::XTEA_MULTIPLE),
+	static_cast<size_t>(std::numeric_limits<NetworkMessage::MsgSize_t>::max()),
+	static_cast<size_t>(std::numeric_limits<uint16_t>::max() - NetworkMessage::HEADER_LENGTH - NetworkMessage::CHECKSUM_LENGTH - NetworkMessage::XTEA_MULTIPLE)
+});
+static_assert(MAX_CAM_SYNC_COALESCE_PAYLOAD > 0, "MAX_CAM_SYNC_COALESCE_PAYLOAD must be positive");
+
+
+constexpr size_t MAX_KNOWN_CREATURES = 1300;
+constexpr bool camSyncKnownUnionFits(size_t targetCount, size_t knownOutsideTarget)
+{
+	return knownOutsideTarget <= MAX_KNOWN_CREATURES
+		&& targetCount <= MAX_KNOWN_CREATURES - knownOutsideTarget;
+}
 
 using WaitList = std::deque<std::pair<int64_t, uint32_t>>; // (timeout, player guid)
 
@@ -123,6 +140,14 @@ std::size_t clientLogin(const Player& player)
 
 }
 
+ProtocolGame::~ProtocolGame()
+{
+	const uint64_t id = camId.exchange(0, std::memory_order_relaxed);
+	if (id != 0) {
+		g_cams.finishCam(id);
+	}
+}
+
 void ProtocolGame::release()
 {
 	//dispatcher thread
@@ -134,6 +159,14 @@ void ProtocolGame::release()
 		Protocol::release();
 		return;
 	}
+
+	const uint64_t id = camId.exchange(0, std::memory_order_relaxed);
+	if (id != 0) {
+		g_cams.finishCam(id);
+	}
+	camStartMs = 0;
+	lastCamSyncMs = 0;
+
 	if (player && player->client == shared_from_this()) {
 		player->client.reset();
 		player->decrementReferenceCounter();
@@ -214,8 +247,24 @@ void ProtocolGame::login(const std::string& name, uint32_t accountId, OperatingS
 
 		player->setOperatingSystem(operatingSystem);
 
+		if (g_cams.isEnabled()) {
+			const uint64_t newCamId = g_cams.initCam(player->getName(), player->getGUID(), player->getLevel(), player->getAccount(), getIP(), getVersion());
+			camId.store(newCamId, std::memory_order_relaxed);
+			if (newCamId != 0) {
+				const int64_t nowMs = OTSYS_TIME();
+				camStartMs = nowMs;
+				lastCamSyncMs = nowMs;
+			}
+		}
+
 		if (!g_game.placeCreature(player, player->getLoginPosition())) {
 			if (!g_game.placeCreature(player, player->getTemplePosition(), false, true)) {
+				const uint64_t id = camId.exchange(0, std::memory_order_relaxed);
+				if (id != 0) {
+					g_cams.cancelCam(id);
+				}
+				camStartMs = 0;
+				lastCamSyncMs = 0;
 				disconnectClient("Temple position is wrong. Contact the administrator.");
 				return;
 			}
@@ -272,6 +321,15 @@ void ProtocolGame::connect(uint32_t playerId, OperatingSystem_t operatingSystem)
 	player->isConnecting = false;
 
 	player->client = getThis();
+	if (g_cams.isEnabled()) {
+		const uint64_t newCamId = g_cams.initCam(player->getName(), player->getGUID(), player->getLevel(), player->getAccount(), getIP(), getVersion());
+		camId.store(newCamId, std::memory_order_relaxed);
+		if (newCamId != 0) {
+			const int64_t nowMs = OTSYS_TIME();
+			camStartMs = nowMs;
+			lastCamSyncMs = nowMs;
+		}
+	}
 	sendAddCreature(player, player->getPosition(), 0, false);
 	player->lastIP = player->getIP();
 	player->lastLoginSaved = std::max<time_t>(time(nullptr), player->lastLoginSaved + 1);
@@ -370,7 +428,7 @@ void ProtocolGame::loginCast(const std::string& targetName, const std::string& p
 
 void ProtocolGame::syncOpenCastChannels()
 {
-	if (!player || !g_chat) {
+	if (!player) {
 		return;
 	}
 
@@ -552,8 +610,283 @@ bool ProtocolGame::canViewerSeeChannel(uint16_t channelId) const
 	if (channelId == CHANNEL_GUILD || channelId == CHANNEL_PARTY || channelId == CHANNEL_PRIVATE) {
 		return false;
 	}
-	const ChatChannel* channel = g_chat ? g_chat->getChannelById(channelId) : nullptr;
+	const ChatChannel* channel = g_chat->getChannelById(channelId);
 	return channel != nullptr && channel->isPublicChannel();
+}
+
+void ProtocolGame::checkCamSync()
+{
+	const int64_t maxDurationMs = Cams::getMaxDurationMs();
+	const int64_t syncIntervalMs = Cams::getSyncIntervalMs();
+	if (maxDurationMs <= 0 && syncIntervalMs <= 0) {
+		return;
+	}
+
+	if (!player || player->isRemoved() || !player->getTile()) {
+		return;
+	}
+
+	const uint64_t activeCamId = camId.load(std::memory_order_relaxed);
+	if (activeCamId == 0 || activeCamId < Cams::getMinActiveCamId()) {
+		return;
+	}
+
+	const int64_t nowMs = OTSYS_TIME();
+	const bool rotateDue = (maxDurationMs > 0 && nowMs - camStartMs >= maxDurationMs);
+	const bool syncDue = (!rotateDue && syncIntervalMs > 0 && nowMs - lastCamSyncMs >= syncIntervalMs);
+	if (!rotateDue && !syncDue) {
+		return;
+	}
+
+	if (isConnectionExpired()) {
+		return;
+	}
+
+	if (rotateDue) {
+		try {
+			rotateCam(activeCamId, nowMs);
+		} catch (const std::exception& e) {
+			std::cout << "[Error - ProtocolGame::checkCamSync] " << e.what() << std::endl;
+			g_cams.emergencyDisable("Unexpected exception while rotating a cam.");
+		} catch (...) {
+			g_cams.emergencyDisable("Unknown exception while rotating a cam.");
+		}
+		return;
+	}
+
+	lastCamSyncMs = nowMs;
+	try {
+		writeCamSyncSnapshot(activeCamId, static_cast<uint64_t>(nowMs));
+	} catch (const std::exception& e) {
+		std::cout << "[Error - ProtocolGame::checkCamSync] " << e.what() << std::endl;
+		g_cams.emergencyDisable("Unexpected exception while building a cam sync snapshot.");
+	} catch (...) {
+		g_cams.emergencyDisable("Unknown exception while building a cam sync snapshot.");
+	}
+}
+
+void ProtocolGame::rotateCam(uint64_t activeCamId, int64_t fallbackNowMs)
+{
+	std::unordered_set<uint32_t> savedKnownCreatures = std::move(knownCreatureSet);
+	knownCreatureSet.clear();
+	camSyncBatch.clear();
+	camCapturePacketType = static_cast<uint8_t>(CamPacketType::Outgoing);
+
+	struct CamCaptureScopeGuard {
+		ProtocolGame* proto;
+		std::unordered_set<uint32_t>& savedKnown;
+		~CamCaptureScopeGuard() {
+			proto->camCapturePacketType = 0;
+			proto->knownCreatureSet = std::move(savedKnown);
+			proto->camSyncBatch.clear();
+		}
+	} guard{this, savedKnownCreatures};
+
+	populateCamSnapshot(savedKnownCreatures);
+
+	if (camSyncBatch.empty()) {
+		std::cout << "[Warning - ProtocolGame::rotateCam] Snapshot for player '" << player->getName()
+		          << "' produced no packets; postponing cam rotation." << std::endl;
+		camStartMs = fallbackNowMs;
+		lastCamSyncMs = fallbackNowMs;
+		return;
+	}
+
+	const CamRotateResult rotated = g_cams.rotateCam(
+		activeCamId,
+		player->getName(),
+		player->getGUID(),
+		player->getLevel(),
+		player->getAccount(),
+		getIP(),
+		getVersion(),
+		camSyncBatch
+	);
+	if (rotated.camId != 0) {
+		camId.store(rotated.camId, std::memory_order_relaxed);
+		camStartMs = rotated.startTimeMs;
+		lastCamSyncMs = rotated.startTimeMs;
+	}
+}
+
+void ProtocolGame::writeCamSyncSnapshot(uint64_t activeCamId, uint64_t syncTimestampMs)
+{
+	std::unordered_set<uint32_t> savedKnownCreatures = std::move(knownCreatureSet);
+	knownCreatureSet.clear();
+	camSyncBatch.clear();
+	camCapturePacketType = static_cast<uint8_t>(CamPacketType::Synchronize);
+
+	struct CamCaptureScopeGuard {
+		ProtocolGame* proto;
+		std::unordered_set<uint32_t>& savedKnown;
+		~CamCaptureScopeGuard() {
+			proto->camCapturePacketType = 0;
+			proto->knownCreatureSet = std::move(savedKnown);
+			proto->camSyncBatch.clear();
+		}
+	} guard{this, savedKnownCreatures};
+
+	populateCamSnapshot(savedKnownCreatures);
+
+	if (!camSyncBatch.empty()) {
+		g_cams.addSyncPackets(activeCamId, syncTimestampMs, camSyncBatch);
+	}
+}
+
+void ProtocolGame::populateCamSnapshot(const std::unordered_set<uint32_t>& savedKnownCreatures)
+{
+	const Position playerPos = player->getPosition();
+	sendAddCreature(player, playerPos, 0, false);
+	sendItems();
+	sendFightModes();
+
+	syncCamKnownCreatures(savedKnownCreatures);
+
+	for (uint8_t cid = 0; cid < 16; ++cid) {
+		auto it = player->openContainers.find(cid);
+		if (it != player->openContainers.end() && it->second.container != nullptr) {
+			sendContainer(cid, it->second.container, it->second.container->hasParent(), it->second.index);
+		} else {
+			sendCloseContainer(cid);
+		}
+	}
+
+	std::vector<const ChatChannel*> openChannels;
+	g_chat->getOpenChannelsForPlayer(*player, openChannels);
+	for (const ChatChannel* channel : openChannels) {
+		sendChannel(channel->getId(), channel->getName(),
+		            channel->isPublicChannel() ? nullptr : &channel->getUsers(),
+		            channel->getInvitedUsers());
+	}
+}
+
+void ProtocolGame::syncCamKnownCreatures(const std::unordered_set<uint32_t>& targetKnownSet)
+{
+	if (!player) {
+		return;
+	}
+
+	const Tile* tile = player->getTile();
+	if (!tile) {
+		return;
+	}
+
+	bool hasMissingKnown = false;
+	for (uint32_t creatureId : targetKnownSet) {
+		if (knownCreatureSet.find(creatureId) == knownCreatureSet.end()) {
+			hasMissingKnown = true;
+			break;
+		}
+	}
+	if (!hasMissingKnown) {
+		return;
+	}
+
+	// |known union target| = |target| + |known minus target| after the map
+	// description. An insert sets removedKnown only once the set grows past
+	// MAX_KNOWN_CREATURES. A union that fits never does that, and the visible
+	// creatures are already in the set, so missing ids are written with
+	// removedKnown = 0 and are not inserted. A larger union keeps the inserts.
+	size_t knownOutsideTarget = 0;
+	for (uint32_t creatureId : knownCreatureSet) {
+		if (targetKnownSet.find(creatureId) == targetKnownSet.end()) {
+			++knownOutsideTarget;
+		}
+	}
+	const bool skipCheckCreatureAsKnown = camSyncKnownUnionFits(targetKnownSet.size(), knownOutsideTarget);
+
+	const Position playerPos = player->getPosition();
+	prepareCamSyncTileOnPlayerPos(tile, playerPos);
+
+	const uint8_t syncStackPos = (tile->getGround() != nullptr) ? 2 : 1;
+	NetworkMessage pairMsg;
+
+	for (uint32_t creatureId : targetKnownSet) {
+		if (knownCreatureSet.find(creatureId) != knownCreatureSet.end()) {
+			continue;
+		}
+
+		uint32_t removedKnown = 0;
+		if (!skipCheckCreatureAsKnown) {
+			bool known = false;
+			checkCreatureAsKnown(creatureId, known, removedKnown);
+			if (known) {
+				continue;
+			}
+		}
+
+		pairMsg.reset();
+		pairMsg.addByte(0x6A);
+		pairMsg.addPosition(playerPos);
+		pairMsg.addByte(syncStackPos);
+
+		const Creature* creature = g_game.getCreatureByID(creatureId);
+		if (creature && !creature->isRemoved()) {
+			AddCreature(pairMsg, creature, false, removedKnown);
+		} else {
+			addCamDummyCreature(pairMsg, creatureId, removedKnown);
+		}
+
+		RemoveTileThing(pairMsg, playerPos, syncStackPos);
+		writeToOutputBuffer(pairMsg);
+	}
+
+	sendUpdateTile(tile, playerPos);
+}
+
+void ProtocolGame::prepareCamSyncTileOnPlayerPos(const Tile* tile, const Position& playerPos)
+{
+	NetworkMessage msg;
+	msg.addByte(0x69);
+	msg.addPosition(playerPos);
+
+	msg.add<uint16_t>(0x00); // environmental effects
+	if (const Item* ground = tile->getGround()) {
+		msg.addItem(ground);
+	}
+
+	bool known = false;
+	uint32_t removedKnown = 0;
+	checkCreatureAsKnown(player->getID(), known, removedKnown);
+	AddCreature(msg, player, known, removedKnown);
+
+	msg.addByte(0x00);
+	msg.addByte(0xFF);
+
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::addCamDummyCreature(NetworkMessage& msg, uint32_t creatureId, uint32_t removedKnown)
+{
+	CreatureType_t creatureType = CREATURETYPE_PLAYER;
+	if (creatureId >= 0x80000000) {
+		creatureType = CREATURETYPE_NPC;
+	} else if (creatureId >= 0x40000000) {
+		creatureType = CREATURETYPE_MONSTER;
+	}
+
+	msg.add<uint16_t>(0x61);
+	msg.add<uint32_t>(removedKnown);
+	msg.add<uint32_t>(creatureId);
+	msg.addByte(creatureType);
+	msg.addString("Dummy");
+	msg.addByte(0x00); // health percent
+	msg.addByte(DIRECTION_NORTH);
+
+	static const Outfit_t emptyOutfit{};
+	AddOutfit(msg, emptyOutfit);
+
+	msg.addByte(0x00); // light level
+	msg.addByte(0x00); // light color
+	msg.add<uint16_t>(100); // step speed / 2
+	msg.addByte(SKULL_NONE);
+	msg.addByte(SHIELD_NONE);
+	msg.addByte(GUILDEMBLEM_NONE);
+	msg.addByte(creatureType); // type for summons
+	msg.addByte(SPEECHBUBBLE_NONE);
+	msg.addByte(0xFF); // MARK_UNMARKED
+	msg.add<uint16_t>(0x00); // helpers
+	msg.addByte(0x00); // walkthrough
 }
 
 void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg)
@@ -708,8 +1041,48 @@ void ProtocolGame::disconnectClient(const std::string& message) const
 
 void ProtocolGame::writeToOutputBuffer(const NetworkMessage& msg)
 {
+	if (camCapturePacketType != 0) {
+		const size_t msgLen = msg.getLength();
+		if (msgLen == 0 || msg.isOverrun() ||
+		    static_cast<size_t>(NetworkMessage::INITIAL_BUFFER_POSITION) + msgLen > static_cast<size_t>(NETWORKMESSAGE_MAXSIZE) ||
+		    1 + msgLen > std::numeric_limits<uint16_t>::max()) {
+			return;
+		}
+
+		const uint8_t* payloadPtr = msg.getBuffer() + NetworkMessage::INITIAL_BUFFER_POSITION;
+
+		if (!camSyncBatch.empty() && (camSyncBatch.back().size() - 1) + msgLen <= MAX_CAM_SYNC_COALESCE_PAYLOAD) {
+			auto& currentPkt = camSyncBatch.back();
+			const size_t oldSize = currentPkt.size();
+			currentPkt.resize(oldSize + msgLen);
+			std::memcpy(currentPkt.data() + oldSize, payloadPtr, msgLen);
+			return;
+		}
+
+		std::vector<uint8_t> newPkt;
+		newPkt.reserve(1 + std::max<size_t>(msgLen, MAX_CAM_SYNC_COALESCE_PAYLOAD));
+		newPkt.resize(1 + msgLen);
+		newPkt[0] = camCapturePacketType;
+		std::memcpy(newPkt.data() + 1, payloadPtr, msgLen);
+		camSyncBatch.push_back(std::move(newPkt));
+		return;
+	}
+
+	const uint64_t activeCamId = camId.load(std::memory_order_relaxed);
+	if (activeCamId >= Cams::getMinActiveCamId()) {
+		g_cams.addOutgoingPacket(activeCamId, msg);
+	}
+
 	auto out = getOutputBuffer(msg.getLength());
 	out->append(msg);
+}
+
+void ProtocolGame::addCustomDataToCam(const NetworkMessage& msg) const
+{
+	const uint64_t activeCamId = camId.load(std::memory_order_relaxed);
+	if (activeCamId >= Cams::getMinActiveCamId()) {
+		g_cams.addCustomDataPacket(activeCamId, msg);
+	}
 }
 
 void ProtocolGame::parsePacket(NetworkMessage& msg)
@@ -718,6 +1091,7 @@ void ProtocolGame::parsePacket(NetworkMessage& msg)
 		return;
 	}
 
+	const uint16_t bufferStartPosition = msg.getBufferPosition();
 	uint8_t recvbyte = msg.getByte();
 
 	if (isCast) {
@@ -894,6 +1268,14 @@ void ProtocolGame::parsePacket(NetworkMessage& msg)
 
 	if (msg.isOverrun()) {
 		disconnect();
+		return;
+	}
+
+	const uint64_t id = camId.load(std::memory_order_relaxed);
+	if (id >= Cams::getMinActiveCamId() && Cams::shouldRecordIncoming()) {
+		// Record only the parsed part: a client may pad every packet up to the maximum packet size
+		const uint16_t parsedLength = std::min<uint16_t>(msg.getLength(), static_cast<uint16_t>(msg.getBufferPosition() - bufferStartPosition));
+		g_cams.addIncomingPacket(id, msg, bufferStartPosition, parsedLength);
 	}
 }
 
@@ -1006,7 +1388,7 @@ void ProtocolGame::checkCreatureAsKnown(uint32_t id, bool& known, uint32_t& remo
 
 	known = false;
 
-	if (knownCreatureSet.size() > 1300) {
+	if (knownCreatureSet.size() > MAX_KNOWN_CREATURES) {
 		// Look for a creature to remove
 		for (auto it = knownCreatureSet.begin(), end = knownCreatureSet.end(); it != end; ++it) {
 			Creature* creature = g_game.getCreatureByID(*it);
@@ -1135,6 +1517,10 @@ void ProtocolGame::parseAutoWalk(NetworkMessage& msg)
 			default: break;
 		}
 	}
+
+	// The path was read backwards, move the read position back to the end of the packet
+	// (cams record only the parsed part of an incoming packet)
+	msg.skipBytes(numdirs);
 
 	if (path.empty()) {
 		return;
@@ -2941,12 +3327,12 @@ void ProtocolGame::sendAddCreature(const Creature* creature, const Position& pos
 	//player light level
 	sendCreatureLight(creature);
 
-	if (!isCast) {
+	if (!isCast && camCapturePacketType == 0) {
 		sendVIPEntries();
 	}
 
 	sendBasicData();
-	if (isCast) {
+	if (isCast || camCapturePacketType != 0) {
 		sendIcons(player->getClientIcons());
 	} else {
 		player->sendIcons();
