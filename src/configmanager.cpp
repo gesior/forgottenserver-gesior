@@ -4,6 +4,7 @@
 #include "otpch.h"
 
 #include "configmanager.h"
+#include "casts.h"
 #include "game.h"
 #include "monster.h"
 #include "pugicast.h"
@@ -300,6 +301,9 @@ bool ConfigManager::load()
 bool ConfigManager::reload()
 {
 	bool result = load();
+	if (result && !getBoolean(CAST_ENABLED)) {
+		Casts::disablePublicCasts();
+	}
 	if (transformToSHA1(getString(ConfigManager::MOTD)) != g_game.getMotdHash()) {
 		g_game.incrementMotdNum();
 	}

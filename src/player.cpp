@@ -1550,9 +1550,22 @@ void Player::onThink(uint32_t interval)
 
 	if (!isRemoved() && guid != 0) {
 		const int32_t currentCastViewers = Casts::getDatabaseViewerValue(this);
+		auto castMessageType = static_cast<MessageClasses>(0);
+		if (time(nullptr) >= lastCastViewerMessageTime + 10) {
+			castMessageType = MESSAGE_STATUS_DEFAULT;
+		}
+
 		if (currentCastViewers != lastSavedCastViewers) {
 			lastSavedCastViewers = currentCastViewers;
 			g_databaseTasks.addTask(fmt::format("UPDATE `players` SET `cast_viewers` = {:d} WHERE `id` = {:d}", currentCastViewers, guid));
+			castMessageType = MESSAGE_STATUS_CONSOLE_BLUE;
+		}
+
+		if (currentCastViewers >= 0 && castMessageType != static_cast<MessageClasses>(0)) {
+			lastCastViewerMessageTime = time(nullptr);
+			const char* viewerWord = currentCastViewers == 1 ? "viewer is" : "viewers are";
+			TextMessage message(castMessageType, fmt::format("{:d} {:s} watching your cast.", currentCastViewers, viewerWord));
+			sendTextMessage(message);
 		}
 	}
 }

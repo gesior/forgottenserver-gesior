@@ -211,11 +211,11 @@ statsTrackLuaAddEventsHashes = false
 enableLuaDebugCommand = false
 
 -- Cast System
--- allow/block new connections to casts
+-- allow/block new connections to public casts (admin can always view casts)
 castEnabled = true
--- max total viewers on casts (admin can always connect), 0 = only admin can connect
+-- max total viewers on casts (admin can always connect), 0 = only admin can view casts
 castMaxViewers = 250
--- max viewers on single cast (admin can always connect, full casts are skipped by up/down arrow 'switch cast')
+-- max viewers on single cast (admin can always connect)
 castMaxViewersPerCast = 50
 -- empty password = no admin access allowed
 castAdminPassword = ""

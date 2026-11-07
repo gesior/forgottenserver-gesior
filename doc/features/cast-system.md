@@ -8,7 +8,7 @@ A character is public only after `/cast`. Public viewers and admin viewers are k
 
 **Broadcast.** `/cast` toggles broadcasting, `/cast on` starts it, and `/cast off` stops it. Stopping a cast moves public viewers to another open cast, or disconnects them if none is available. Admin viewers stay on that character.
 
-**Watch.** Log in with the account name `cast` (any case) and leave the password empty. The character list shows active casts, up to 255, sorted by viewer count and then by name. Each row is the player name, with a world line such as `3 viewers | Lvl 100`.
+**Watch.** Log in with the account name `cast` and leave the password empty. The character list shows active casts, up to 255, sorted by viewer count and then by name. Each row is the player name, with a world line such as `3 viewers | Lvl 100`.
 
 **Switch.** Arrow keys and Ctrl+arrows move to the previous or next open cast. The order is alphabetical: north and west go to the previous cast, south and east go to the next. `/sc <name>` jumps to a named broadcaster. Full casts are skipped, and switches are limited to one every 500 ms.
 
@@ -16,11 +16,11 @@ A public viewer sees the map, equipment, open containers, and public channels. G
 
 ## Administrators
 
-Log in with the account name `admincast` (any case). The password is `castAdminPassword` from [config.lua.dist](../../config.lua.dist) and is case-sensitive. An empty password disables admin login.
+Log in with the account name `admincast`. The password is `castAdminPassword` from [config.lua.dist](../../config.lua.dist). An empty password disables admin login.
 
-The character list is the 50 highest-level players online, not only characters that used `/cast`. The world line is `Lvl N`. A player who is not on that list can still be opened with `/sc <name>` after joining someone who is listed.
+The character list is the 50 highest-level players online, not only characters that used `/cast`. The world line is `Lvl N`. Arrow keys and `/sc <name>` can still reach a player who is not on that list.
 
-Arrow keys do not switch casts. Use `/sc <name>` to watch any online player, including one who is not broadcasting.
+**Switch.** Arrow keys and Ctrl+arrows move through every player online, including players who are not broadcasting. The order is level from highest to lowest.Arrow switches are limited to one every 300 ms. `/sc <name>` jumps to any online player and has no cooldown.
 
 Admin viewers ignore `castEnabled`, `castMaxViewers`, and `castMaxViewersPerCast`. They also see guild, party, and private channels, and private messages.
 
@@ -30,7 +30,7 @@ If the watched player logs out, the admin is disconnected. Closing the server di
 
 In `config.lua`:
 
-- `castEnabled` — allow or block new public cast connections.
+- `castEnabled` — allow or block new public cast connections. Admin can always view casts.
 - `castMaxViewers` — server-wide public viewer cap. `0` means only admins can watch.
 - `castMaxViewersPerCast` — public viewer cap for one cast. Full casts are skipped when switching with the arrow keys.
 - `castAdminPassword` — password for the `admincast` account. Empty disables admin access.

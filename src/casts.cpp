@@ -53,6 +53,9 @@ bool comparePublicEntries(const CastEntryInfo& a, const CastEntryInfo& b)
 	if (a.publicViewers != b.publicViewers) {
 		return a.publicViewers > b.publicViewers;
 	}
+	if (a.level != b.level) {
+		return a.level > b.level;
+	}
 	int cmp = strcasecmp(a.name.c_str(), b.name.c_str());
 	if (cmp != 0) {
 		return cmp < 0;
@@ -67,6 +70,23 @@ bool compareAlphabeticalPlayers(const Player* a, const Player* b)
 		return cmp < 0;
 	}
 	return a->getName() < b->getName();
+}
+
+bool comparePlayersByLevel(const Player* a, const Player* b)
+{
+	if (a->getLevel() != b->getLevel()) {
+		return a->getLevel() > b->getLevel();
+	}
+	if (a->getExperience() != b->getExperience()) {
+		return a->getExperience() > b->getExperience();
+	}
+	return compareAlphabeticalPlayers(a, b);
+}
+
+bool isPublicCastOpen()
+{
+	const GameState_t gameState = g_game.getGameState();
+	return gameState == GAME_STATE_NORMAL || gameState == GAME_STATE_CLOSED;
 }
 
 void relocateOrDisconnectPublicViewers(const std::vector<ProtocolGame_ptr>& viewersToMove, const std::string& disconnectReason)
@@ -210,6 +230,9 @@ bool Casts::setBroadcasting(Player* player, bool enabled)
 	state.player = player;
 
 	if (enabled) {
+		if (!g_config.getBoolean(ConfigManager::CAST_ENABLED)) {
+			return false;
+		}
 		state.broadcasting = true;
 		return true;
 	}
@@ -315,15 +338,7 @@ std::vector<CastEntryInfo> Casts::getAdminTargetsForLoginList()
 		}
 	}
 
-	std::sort(onlinePlayers.begin(), onlinePlayers.end(), [](const Player* a, const Player* b) {
-		if (a->getLevel() != b->getLevel()) {
-			return a->getLevel() > b->getLevel();
-		}
-		if (a->getExperience() != b->getExperience()) {
-			return a->getExperience() > b->getExperience();
-		}
-		return compareAlphabeticalPlayers(a, b);
-	});
+	std::sort(onlinePlayers.begin(), onlinePlayers.end(), comparePlayersByLevel);
 
 	if (onlinePlayers.size() > MAX_ADMIN_LIST_ENTRIES) {
 		onlinePlayers.resize(MAX_ADMIN_LIST_ENTRIES);
@@ -363,7 +378,7 @@ CastLoginStatus Casts::canJoinCast(const Player* target, bool isAdmin, const std
 		return CastLoginStatus::Allowed;
 	}
 
-	if (g_game.getGameState() != GAME_STATE_NORMAL) {
+	if (!isPublicCastOpen()) {
 		errorMessage = "Server is currently closed. Please try again later.";
 		return CastLoginStatus::Disabled;
 	}
@@ -475,48 +490,61 @@ bool Casts::switchCastByDirection(const ProtocolGame_ptr& viewer, Direction dir)
 		return false;
 	}
 
-	if (viewer->isCastAdminViewer()) {
-		viewer->sendCancelWalk();
-		return false;
-	}
-
+	const bool isAdmin = viewer->isCastAdminViewer();
 	const int64_t now = OTSYS_TIME();
-	if (now - viewer->getLastCastSwitchTime() < SWITCH_COOLDOWN_MS) {
+	const int64_t cooldown = isAdmin ? ADMIN_SWITCH_COOLDOWN_MS : SWITCH_COOLDOWN_MS;
+	if (now - viewer->getLastCastSwitchTime() < cooldown) {
 		viewer->sendCancelWalk();
 		return false;
 	}
 
-	if (!g_config.getBoolean(ConfigManager::CAST_ENABLED) || g_game.getGameState() != GAME_STATE_NORMAL) {
+	if (!isAdmin && (!g_config.getBoolean(ConfigManager::CAST_ENABLED) || !isPublicCastOpen())) {
 		viewer->sendCancelWalk();
 		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Cast system is currently disabled.");
 		return false;
 	}
 
 	Player* currentTarget = viewer->getCurrentCastTarget();
-	const int32_t maxPerCast = g_config.getNumber(ConfigManager::CAST_MAX_VIEWERS_PER_CAST);
 
 	std::vector<Player*> candidates;
-	candidates.reserve(g_castStates.size());
-	for (const auto& pair : g_castStates) {
-		const PlayerCastState& state = pair.second;
-		if (!state.player || state.player->isRemoved()) {
-			continue;
+	if (isAdmin) {
+		const auto& players = g_game.getPlayers();
+		candidates.reserve(players.size());
+		for (const auto& pair : players) {
+			Player* player = pair.second;
+			if (player && !player->isRemoved()) {
+				candidates.push_back(player);
+			}
 		}
+	} else {
+		const int32_t maxPerCast = g_config.getNumber(ConfigManager::CAST_MAX_VIEWERS_PER_CAST);
+		candidates.reserve(g_castStates.size());
+		for (const auto& pair : g_castStates) {
+			const PlayerCastState& state = pair.second;
+			if (!state.player || state.player->isRemoved()) {
+				continue;
+			}
 
-		if (state.player == currentTarget) {
-			candidates.push_back(state.player);
-		} else if (state.broadcasting && maxPerCast > 0 && static_cast<int32_t>(state.publicViewers.size()) < maxPerCast) {
-			candidates.push_back(state.player);
+			if (state.player == currentTarget) {
+				candidates.push_back(state.player);
+			} else if (state.broadcasting && maxPerCast > 0 && static_cast<int32_t>(state.publicViewers.size()) < maxPerCast) {
+				candidates.push_back(state.player);
+			}
 		}
 	}
 
+	const char* noOtherMessage = isAdmin ? "No other players online." : "No other available casts.";
 	if (candidates.empty()) {
 		viewer->sendCancelWalk();
-		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "No other available casts.");
+		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, noOtherMessage);
 		return false;
 	}
 
-	std::sort(candidates.begin(), candidates.end(), compareAlphabeticalPlayers);
+	if (isAdmin) {
+		std::sort(candidates.begin(), candidates.end(), comparePlayersByLevel);
+	} else {
+		std::sort(candidates.begin(), candidates.end(), compareAlphabeticalPlayers);
+	}
 
 	const CastSwitchDirection switchDir = (dir == DIRECTION_NORTH || dir == DIRECTION_WEST)
 		? CastSwitchDirection::Previous
@@ -527,7 +555,7 @@ bool Casts::switchCastByDirection(const ProtocolGame_ptr& viewer, Direction dir)
 	if (currentIt != candidates.end()) {
 		if (candidates.size() <= 1) {
 			viewer->sendCancelWalk();
-			viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "No other available casts.");
+			viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, noOtherMessage);
 			return false;
 		}
 
@@ -542,28 +570,44 @@ bool Casts::switchCastByDirection(const ProtocolGame_ptr& viewer, Direction dir)
 
 	if (!nextTarget || nextTarget == currentTarget) {
 		viewer->sendCancelWalk();
-		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "No other available casts.");
+		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, noOtherMessage);
 		return false;
 	}
 
-	bool wasTrackedPublic = false;
-	if (currentTarget) {
-		auto oldIt = g_castStates.find(currentTarget);
-		if (oldIt != g_castStates.end() && removeViewerFromVector(oldIt->second.publicViewers, viewer)) {
-			wasTrackedPublic = true;
-			oldIt->second.rebuildAllViewers();
+	if (isAdmin) {
+		if (currentTarget) {
+			auto oldIt = g_castStates.find(currentTarget);
+			if (oldIt != g_castStates.end() && removeViewerFromVector(oldIt->second.adminViewers, viewer)) {
+				oldIt->second.rebuildAllViewers();
+			}
 		}
-	}
 
-	PlayerCastState& newState = g_castStates[nextTarget];
-	newState.player = nextTarget;
-	if (std::find(newState.publicViewers.begin(), newState.publicViewers.end(), viewer) == newState.publicViewers.end()) {
-		newState.publicViewers.push_back(viewer);
-		if (!wasTrackedPublic) {
-			++g_totalPublicViewers;
+		PlayerCastState& newState = g_castStates[nextTarget];
+		newState.player = nextTarget;
+		if (std::find(newState.adminViewers.begin(), newState.adminViewers.end(), viewer) == newState.adminViewers.end()) {
+			newState.adminViewers.push_back(viewer);
 		}
+		newState.rebuildAllViewers();
+	} else {
+		bool wasTrackedPublic = false;
+		if (currentTarget) {
+			auto oldIt = g_castStates.find(currentTarget);
+			if (oldIt != g_castStates.end() && removeViewerFromVector(oldIt->second.publicViewers, viewer)) {
+				wasTrackedPublic = true;
+				oldIt->second.rebuildAllViewers();
+			}
+		}
+
+		PlayerCastState& newState = g_castStates[nextTarget];
+		newState.player = nextTarget;
+		if (std::find(newState.publicViewers.begin(), newState.publicViewers.end(), viewer) == newState.publicViewers.end()) {
+			newState.publicViewers.push_back(viewer);
+			if (!wasTrackedPublic) {
+				++g_totalPublicViewers;
+			}
+		}
+		newState.rebuildAllViewers();
 	}
-	newState.rebuildAllViewers();
 
 	viewer->setLastCastSwitchTime(now);
 	viewer->switchCastTarget(nextTarget);
@@ -576,13 +620,13 @@ bool Casts::switchCastByName(const ProtocolGame_ptr& viewer, const std::string& 
 		return false;
 	}
 
+	const bool isAdmin = viewer->isCastAdminViewer();
 	const int64_t now = OTSYS_TIME();
-	if (now - viewer->getLastCastSwitchTime() < SWITCH_COOLDOWN_MS) {
+	if (!isAdmin && now - viewer->getLastCastSwitchTime() < SWITCH_COOLDOWN_MS) {
 		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Please wait a moment before switching casts again.");
 		return false;
 	}
 
-	const bool isAdmin = viewer->isCastAdminViewer();
 	Player* target = g_game.getPlayerByName(targetName);
 	if (!target || target->isRemoved()) {
 		viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, isAdmin ? "Player is offline." : "Player is offline or not broadcasting.");
@@ -596,7 +640,7 @@ bool Casts::switchCastByName(const ProtocolGame_ptr& viewer, const std::string& 
 	}
 
 	if (!isAdmin) {
-		if (!g_config.getBoolean(ConfigManager::CAST_ENABLED) || g_game.getGameState() != GAME_STATE_NORMAL) {
+		if (!g_config.getBoolean(ConfigManager::CAST_ENABLED) || !isPublicCastOpen()) {
 			viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Cast system is currently disabled.");
 			return false;
 		}
@@ -664,6 +708,31 @@ const std::vector<ProtocolGame_ptr>& Casts::getViewerProtocols(const Player* pla
 		return g_emptyViewers;
 	}
 	return it->second.allViewers;
+}
+
+void Casts::disablePublicCasts()
+{
+	std::vector<Player*> broadcasters;
+	broadcasters.reserve(g_castStates.size());
+	for (const auto& pair : g_castStates) {
+		const PlayerCastState& state = pair.second;
+		if (state.broadcasting && state.player && !state.player->isRemoved()) {
+			broadcasters.push_back(state.player);
+		}
+	}
+
+	disconnectAllViewers(false, "Cast system is currently disabled.");
+
+	for (auto& pair : g_castStates) {
+		pair.second.broadcasting = false;
+	}
+
+	for (Player* player : broadcasters) {
+		if (player->isRemoved()) {
+			continue;
+		}
+		player->sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "Cast system has been disabled. Your broadcast was stopped.");
+	}
 }
 
 void Casts::disconnectAllViewers(bool includeAdmins, const std::string& reason)

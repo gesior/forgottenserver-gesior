@@ -42,6 +42,7 @@ class Casts
 		static constexpr size_t MAX_PUBLIC_LIST_ENTRIES = 255;
 		static constexpr size_t MAX_ADMIN_LIST_ENTRIES = 50;
 		static constexpr int64_t SWITCH_COOLDOWN_MS = 500;
+		static constexpr int64_t ADMIN_SWITCH_COOLDOWN_MS = 300;
 
 		static bool isCastAccount(const std::string& accountName);
 		static bool isAdminCastAccount(const std::string& accountName);
@@ -70,6 +71,7 @@ class Casts
 		static const std::vector<ProtocolGame_ptr>& getViewerProtocols(const Player* player);
 
 		static void disconnectAllViewers(bool includeAdmins, const std::string& reason);
+		static void disablePublicCasts();
 };
 
 #endif

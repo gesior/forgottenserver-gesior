@@ -434,7 +434,7 @@ void ProtocolGame::sendCastWorldState()
 	syncOpenCastChannels();
 
 	if (isCastAdmin) {
-		sendCastSystemMessage(MESSAGE_STATUS_CONSOLE_BLUE, fmt::format("[Admin Cast] Now watching: {:s} (Level {:d}). Use /sc <name> to switch.", player->getName(), player->getLevel()));
+		sendCastSystemMessage(MESSAGE_STATUS_CONSOLE_BLUE, fmt::format("[Admin Cast] Now watching: {:s} (Level {:d}). Use Ctrl+arrows or /sc <name> to switch.", player->getName(), player->getLevel()));
 	} else {
 		sendCastSystemMessage(MESSAGE_STATUS_CONSOLE_BLUE, fmt::format("Now watching: {:s} (Level {:d}). Use Ctrl+arrows or /sc <name> to switch casts.", player->getName(), player->getLevel()));
 	}

@@ -4,6 +4,11 @@ local function enableCast(player)
 		return false
 	end
 
+	if not configManager.getBoolean(configKeys.CAST_ENABLED) then
+		player:sendCancelMessage("Cast system is currently disabled.")
+		return false
+	end
+
 	if not player:setCastBroadcast(true) then
 		player:sendCancelMessage("Cast system is currently unavailable.")
 		return false

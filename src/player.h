@@ -1420,6 +1420,7 @@ class Player final : public Creature, public Cylinder
 		bool addAttackSkillPoint = false;
 		bool inventoryAbilities[CONST_SLOT_LAST + 1] = {};
 		int32_t lastSavedCastViewers = -2;
+		time_t lastCastViewerMessageTime = 0;
 		bool castHasViewers = false;
 
 		static uint32_t playerAutoID;
