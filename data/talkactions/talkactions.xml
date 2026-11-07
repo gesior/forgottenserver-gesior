@@ -40,6 +40,7 @@
 
 	<!-- player talkactions -->
 	<talkaction words="!cast;/cast" separator=" " script="cast.lua" />
+	<talkaction words="!castpriv;/castpriv" separator=" " script="cast.lua" />
 	<talkaction words="!buypremium" script="buyprem.lua" />
 	<talkaction words="!buyhouse" script="buyhouse.lua" />
 	<talkaction words="!sellhouse" separator=" " script="sellhouse.lua" />

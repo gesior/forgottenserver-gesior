@@ -137,10 +137,6 @@ void ProtocolLogin::getCastsList(const std::string& accountName, const std::stri
 	}
 
 	const bool adminMode = Casts::isAdminCastAccount(accountName);
-	if (!adminMode && !password.empty()) {
-		disconnectClient("Leave password empty to watch casts.", version);
-		return;
-	}
 
 	std::string errorMessage;
 	if (Casts::canJoinCast(nullptr, adminMode, password, errorMessage) != CastLoginStatus::Allowed) {
@@ -148,7 +144,7 @@ void ProtocolLogin::getCastsList(const std::string& accountName, const std::stri
 		return;
 	}
 
-	std::vector<CastEntryInfo> entries = adminMode ? Casts::getAdminTargetsForLoginList() : Casts::getPublicCastsForLoginList();
+	std::vector<CastEntryInfo> entries = adminMode ? Casts::getAdminTargetsForLoginList() : Casts::getPublicCastsForLoginList(password);
 	if (entries.empty()) {
 		disconnectClient(adminMode ? "There are currently no players online." : "There are currently no active casts.", version);
 		return;
@@ -184,7 +180,11 @@ void ProtocolLogin::getCastsList(const std::string& accountName, const std::stri
 		if (adminMode) {
 			output->addString(fmt::format("Lvl {:d}", entry.level));
 		} else {
-			output->addString(fmt::format("{:d} {:s} | Lvl {:d}", entry.publicViewers, (entry.publicViewers == 1 ? "viewer" : "viewers"), entry.level));
+			std::string worldName = fmt::format("{:d} {:s} | Lvl {:d}", entry.publicViewers, (entry.publicViewers == 1 ? "viewer" : "viewers"), entry.level);
+			if (entry.passwordProtected) {
+				worldName += " PASS";
+			}
+			output->addString(worldName);
 		}
 		output->addString(worldIp);
 		output->add<uint16_t>(gamePort);

@@ -19,6 +19,7 @@ namespace {
 struct PlayerCastState {
 	Player* player = nullptr;
 	bool broadcasting = false;
+	std::string password;
 	std::vector<ProtocolGame_ptr> publicViewers;
 	std::vector<ProtocolGame_ptr> adminViewers;
 	std::vector<ProtocolGame_ptr> allViewers;
@@ -89,6 +90,11 @@ bool isPublicCastOpen()
 	return gameState == GAME_STATE_NORMAL || gameState == GAME_STATE_CLOSED;
 }
 
+bool castPasswordAllowsViewer(const std::string& castPassword, const std::string& viewerPassword)
+{
+	return castPassword.empty() || castPassword == viewerPassword;
+}
+
 void relocateOrDisconnectPublicViewers(const std::vector<ProtocolGame_ptr>& viewersToMove, const std::string& disconnectReason)
 {
 	if (viewersToMove.empty()) {
@@ -104,7 +110,7 @@ void relocateOrDisconnectPublicViewers(const std::vector<ProtocolGame_ptr>& view
 		candidates.reserve(g_castStates.size());
 		for (const auto& entry : g_castStates) {
 			const PlayerCastState& state = entry.second;
-			if (state.broadcasting && state.player && !state.player->isRemoved() &&
+			if (state.broadcasting && state.password.empty() && state.player && !state.player->isRemoved() &&
 			    static_cast<int32_t>(state.publicViewers.size()) < maxPerCast) {
 				candidates.push_back(state.player);
 			}
@@ -158,12 +164,12 @@ void relocateOrDisconnectPublicViewers(const std::vector<ProtocolGame_ptr>& view
 
 bool Casts::isCastAccount(const std::string& accountName)
 {
-	return strcasecmp(accountName.c_str(), CAST_ACCOUNT_NAME) == 0;
+	return strcasecmp(accountName.c_str(), CAST_ACCOUNT_NAME_1) == 0 || strcasecmp(accountName.c_str(), CAST_ACCOUNT_NAME_2) == 0;
 }
 
 bool Casts::isAdminCastAccount(const std::string& accountName)
 {
-	return strcasecmp(accountName.c_str(), ADMIN_CAST_ACCOUNT_NAME) == 0;
+	return strcasecmp(accountName.c_str(), ADMIN_CAST_ACCOUNT_NAME_1) == 0 || strcasecmp(accountName.c_str(), ADMIN_CAST_ACCOUNT_NAME_2) == 0;
 }
 
 bool Casts::validateAdminPassword(const std::string& password)
@@ -233,6 +239,7 @@ bool Casts::setBroadcasting(Player* player, bool enabled)
 		if (!g_config.getBoolean(ConfigManager::CAST_ENABLED)) {
 			return false;
 		}
+		state.password.clear();
 		state.broadcasting = true;
 		return true;
 	}
@@ -242,6 +249,7 @@ bool Casts::setBroadcasting(Player* player, bool enabled)
 	}
 
 	state.broadcasting = false;
+	state.password.clear();
 	std::vector<ProtocolGame_ptr> publicViewers = std::move(state.publicViewers);
 	state.publicViewers.clear();
 
@@ -257,6 +265,35 @@ bool Casts::setBroadcasting(Player* player, bool enabled)
 	return true;
 }
 
+bool Casts::isValidCastPassword(const std::string& password)
+{
+	if (password.empty() || password.size() > MAX_CAST_PASSWORD_LENGTH) {
+		return false;
+	}
+	return password.find('\n') == std::string::npos && password.find('\r') == std::string::npos;
+}
+
+bool Casts::setPrivateBroadcast(Player* player, const std::string& password)
+{
+	if (!player || player->isRemoved() || !isValidCastPassword(password)) {
+		return false;
+	}
+
+	if (!g_config.getBoolean(ConfigManager::CAST_ENABLED)) {
+		return false;
+	}
+
+	PlayerCastState& state = g_castStates[player];
+	state.player = player;
+	if (state.broadcasting) {
+		return false;
+	}
+
+	state.password = password;
+	state.broadcasting = true;
+	return true;
+}
+
 bool Casts::isBroadcasting(const Player* player)
 {
 	if (!player) {
@@ -265,6 +302,16 @@ bool Casts::isBroadcasting(const Player* player)
 
 	auto it = g_castStates.find(player);
 	return it != g_castStates.end() && it->second.broadcasting;
+}
+
+bool Casts::isPublicCast(const Player* player)
+{
+	if (!player) {
+		return false;
+	}
+
+	auto it = g_castStates.find(player);
+	return it != g_castStates.end() && it->second.broadcasting && it->second.password.empty();
 }
 
 uint32_t Casts::getPublicViewerCount(const Player* player)
@@ -298,9 +345,14 @@ int32_t Casts::getDatabaseViewerValue(const Player* player)
 	return static_cast<int32_t>(it->second.publicViewers.size());
 }
 
-std::vector<CastEntryInfo> Casts::getPublicCastsForLoginList()
+std::vector<CastEntryInfo> Casts::getPublicCastsForLoginList(const std::string& viewerPassword)
 {
-	std::vector<CastEntryInfo> entries;
+	struct LoginListEntry {
+		CastEntryInfo info;
+		bool passwordMatches = false;
+	};
+
+	std::vector<LoginListEntry> entries;
 	entries.reserve(g_castStates.size());
 
 	for (const auto& pair : g_castStates) {
@@ -309,20 +361,33 @@ std::vector<CastEntryInfo> Casts::getPublicCastsForLoginList()
 			continue;
 		}
 
-		CastEntryInfo info;
-		info.player = state.player;
-		info.name = state.player->getName();
-		info.level = state.player->getLevel();
-		info.publicViewers = static_cast<uint32_t>(state.publicViewers.size());
-		entries.push_back(std::move(info));
+		LoginListEntry entry;
+		entry.info.player = state.player;
+		entry.info.name = state.player->getName();
+		entry.info.level = state.player->getLevel();
+		entry.info.publicViewers = static_cast<uint32_t>(state.publicViewers.size());
+		entry.info.passwordProtected = !state.password.empty();
+		entry.passwordMatches = !viewerPassword.empty() && state.password == viewerPassword;
+		entries.push_back(std::move(entry));
 	}
 
-	std::sort(entries.begin(), entries.end(), comparePublicEntries);
+	std::sort(entries.begin(), entries.end(), [](const LoginListEntry& a, const LoginListEntry& b) {
+		if (a.passwordMatches != b.passwordMatches) {
+			return a.passwordMatches;
+		}
+		return comparePublicEntries(a.info, b.info);
+	});
 
 	if (entries.size() > MAX_PUBLIC_LIST_ENTRIES) {
 		entries.resize(MAX_PUBLIC_LIST_ENTRIES);
 	}
-	return entries;
+
+	std::vector<CastEntryInfo> result;
+	result.reserve(entries.size());
+	for (auto& entry : entries) {
+		result.push_back(std::move(entry.info));
+	}
+	return result;
 }
 
 std::vector<CastEntryInfo> Casts::getAdminTargetsForLoginList()
@@ -403,6 +468,12 @@ CastLoginStatus Casts::canJoinCast(const Player* target, bool isAdmin, const std
 		if (!isBroadcasting(target)) {
 			errorMessage = "This player is not broadcasting right now.";
 			return CastLoginStatus::TargetNotBroadcasting;
+		}
+
+		auto stateIt = g_castStates.find(target);
+		if (stateIt != g_castStates.end() && !castPasswordAllowsViewer(stateIt->second.password, password)) {
+			errorMessage = "This cast uses a different password.";
+			return CastLoginStatus::InvalidCastPassword;
 		}
 
 		const int32_t maxPerCast = g_config.getNumber(ConfigManager::CAST_MAX_VIEWERS_PER_CAST);
@@ -527,7 +598,8 @@ bool Casts::switchCastByDirection(const ProtocolGame_ptr& viewer, Direction dir)
 
 			if (state.player == currentTarget) {
 				candidates.push_back(state.player);
-			} else if (state.broadcasting && maxPerCast > 0 && static_cast<int32_t>(state.publicViewers.size()) < maxPerCast) {
+			} else if (state.broadcasting && maxPerCast > 0 && static_cast<int32_t>(state.publicViewers.size()) < maxPerCast &&
+			           castPasswordAllowsViewer(state.password, viewer->getCastPassword())) {
 				candidates.push_back(state.player);
 			}
 		}
@@ -650,6 +722,12 @@ bool Casts::switchCastByName(const ProtocolGame_ptr& viewer, const std::string& 
 			return false;
 		}
 
+		auto stateIt = g_castStates.find(target);
+		if (stateIt != g_castStates.end() && !castPasswordAllowsViewer(stateIt->second.password, viewer->getCastPassword())) {
+			viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "This cast uses a different password.");
+			return false;
+		}
+
 		const int32_t maxPerCast = g_config.getNumber(ConfigManager::CAST_MAX_VIEWERS_PER_CAST);
 		if (maxPerCast <= 0 || static_cast<int32_t>(getPublicViewerCount(target)) >= maxPerCast) {
 			viewer->sendCastSystemMessage(MESSAGE_STATUS_SMALL, "This cast is full.");
@@ -725,6 +803,7 @@ void Casts::disablePublicCasts()
 
 	for (auto& pair : g_castStates) {
 		pair.second.broadcasting = false;
+		pair.second.password.clear();
 	}
 
 	for (Player* player : broadcasters) {

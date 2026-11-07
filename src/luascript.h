@@ -591,6 +591,7 @@ class LuaScriptInterface
 		static int luaGameStartRaid(lua_State* L);
 
 		static int luaGameGetClientVersion(lua_State* L);
+		static int luaGameIsValidCastPassword(lua_State* L);
 
 		static int luaGameReload(lua_State* L);
 
@@ -1052,7 +1053,9 @@ class LuaScriptInterface
 		static int luaPlayerGetStoreInbox(lua_State* L);
 
 		static int luaPlayerSetCastBroadcast(lua_State* L);
+		static int luaPlayerSetPrivateCastBroadcast(lua_State* L);
 		static int luaPlayerIsCastBroadcasting(lua_State* L);
+		static int luaPlayerIsCastPublic(lua_State* L);
 		static int luaPlayerGetCastViewerCount(lua_State* L);
 
 		// Monster

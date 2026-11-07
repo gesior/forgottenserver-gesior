@@ -63,6 +63,9 @@ class ProtocolGame final : public Protocol
 		bool isCastAdminViewer() const {
 			return isCastAdmin;
 		}
+		const std::string& getCastPassword() const {
+			return castPassword;
+		}
 		bool isProtocolReleased() const {
 			return isReleased;
 		}
@@ -366,6 +369,7 @@ class ProtocolGame final : public Protocol
 		int64_t lastCastSwitchTime = 0;
 		bool isCast = false;
 		bool isCastAdmin = false;
+		std::string castPassword;
 		bool isReleased = false;
 };
 

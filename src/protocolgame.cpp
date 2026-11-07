@@ -359,6 +359,10 @@ void ProtocolGame::loginCast(const std::string& targetName, const std::string& p
 		return;
 	}
 
+	if (!adminMode) {
+		castPassword = password;
+	}
+
 	acceptPackets = true;
 	OutputMessagePool::getInstance().addProtocolToAutosend(shared_from_this());
 	sendCastWorldState();
@@ -650,10 +654,6 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg)
 
 	if (Casts::isCastAccount(accountName) || Casts::isAdminCastAccount(accountName)) {
 		const bool adminMode = Casts::isAdminCastAccount(accountName);
-		if (!adminMode && !password.empty()) {
-			disconnectClient("Leave password empty to watch casts.");
-			return;
-		}
 		isCast = true;
 		isCastAdmin = adminMode;
 		g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::loginCast, getThis(), characterName, password, adminMode)));
