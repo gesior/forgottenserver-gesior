@@ -6,6 +6,7 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 #include "luascript.h"
+#include "casts.h"
 #include "chat.h"
 #include "player.h"
 #include "game.h"
@@ -1967,6 +1968,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnums();
 
 	// _G
+	registerGlobalVariable("CAST_PASSWORD_MAX_LENGTH", Casts::MAX_CAST_PASSWORD_LENGTH);
 	registerGlobalVariable("INDEX_WHEREEVER", INDEX_WHEREEVER);
 	registerGlobalBoolean("VIRTUAL_PARENT", true);
 
@@ -2006,6 +2008,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::ALLOW_OTC_PROXY);
 	registerEnumIn("configKeys", ConfigManager::ALLOW_HAPROXY);
 	registerEnumIn("configKeys", ConfigManager::ENABLE_LUA_DEBUG_COMMAND);
+	registerEnumIn("configKeys", ConfigManager::CAST_ENABLED);
 
 	registerEnumIn("configKeys", ConfigManager::MAP_NAME)
 	registerEnumIn("configKeys", ConfigManager::HOUSE_RENT_PERIOD)
@@ -2025,6 +2028,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::DEFAULT_PRIORITY)
 	registerEnumIn("configKeys", ConfigManager::MAP_AUTHOR)
 	registerEnumIn("configKeys", ConfigManager::STATUS_IP);
+	registerEnumIn("configKeys", ConfigManager::CAST_ADMIN_PASSWORD);
 
 	registerEnumIn("configKeys", ConfigManager::SQL_PORT)
 	registerEnumIn("configKeys", ConfigManager::MAX_PLAYERS)
@@ -2060,6 +2064,8 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::EXP_FROM_PLAYERS_LEVEL_RANGE)
 	registerEnumIn("configKeys", ConfigManager::MAX_PACKETS_PER_SECOND)
 	registerEnumIn("configKeys", ConfigManager::PLAYER_CONSOLE_LOGS)
+	registerEnumIn("configKeys", ConfigManager::CAST_MAX_VIEWERS);
+	registerEnumIn("configKeys", ConfigManager::CAST_MAX_VIEWERS_PER_CAST);
 
 	// os
 	registerMethod("os", "mtime", LuaScriptInterface::luaSystemTime);
@@ -2106,6 +2112,7 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("Game", "startRaid", LuaScriptInterface::luaGameStartRaid);
 
 	registerMethod("Game", "getClientVersion", LuaScriptInterface::luaGameGetClientVersion);
+	registerMethod("Game", "isValidCastPassword", LuaScriptInterface::luaGameIsValidCastPassword);
 
 	registerMethod("Game", "reload", LuaScriptInterface::luaGameReload);
 
@@ -2574,6 +2581,12 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("Player", "getFightMode", LuaScriptInterface::luaPlayerGetFightMode);
 
 	registerMethod("Player", "getStoreInbox", LuaScriptInterface::luaPlayerGetStoreInbox);
+
+	registerMethod("Player", "setCastBroadcast", LuaScriptInterface::luaPlayerSetCastBroadcast);
+	registerMethod("Player", "setPrivateCastBroadcast", LuaScriptInterface::luaPlayerSetPrivateCastBroadcast);
+	registerMethod("Player", "isCastBroadcasting", LuaScriptInterface::luaPlayerIsCastBroadcasting);
+	registerMethod("Player", "isCastPublic", LuaScriptInterface::luaPlayerIsCastPublic);
+	registerMethod("Player", "getCastViewerCount", LuaScriptInterface::luaPlayerGetCastViewerCount);
 
 	// Monster
 	registerClass("Monster", "Creature", LuaScriptInterface::luaMonsterCreate);
@@ -4719,6 +4732,13 @@ int LuaScriptInterface::luaGameGetClientVersion(lua_State* L)
 	setField(L, "min", CLIENT_VERSION_MIN);
 	setField(L, "max", CLIENT_VERSION_MAX);
 	setField(L, "string", CLIENT_VERSION_STR);
+	return 1;
+}
+
+int LuaScriptInterface::luaGameIsValidCastPassword(lua_State* L)
+{
+	// Game.isValidCastPassword(password)
+	pushBoolean(L, Casts::isValidCastPassword(getString(L, 1)));
 	return 1;
 }
 
@@ -10428,6 +10448,72 @@ int LuaScriptInterface::luaPlayerGetStoreInbox(lua_State* L)
 
 	pushUserdata<Container>(L, storeInbox);
 	setMetatable(L, -1, "Container");
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerSetCastBroadcast(lua_State* L)
+{
+	// player:setCastBroadcast(enabled)
+	Player* player = getUserdata<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	bool enabled = getBoolean(L, 2);
+	pushBoolean(L, Casts::setBroadcasting(player, enabled));
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerSetPrivateCastBroadcast(lua_State* L)
+{
+	// player:setPrivateCastBroadcast(password)
+	Player* player = getUserdata<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	pushBoolean(L, Casts::setPrivateBroadcast(player, getString(L, 2)));
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerIsCastBroadcasting(lua_State* L)
+{
+	// player:isCastBroadcasting()
+	const Player* player = getUserdata<const Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	pushBoolean(L, Casts::isBroadcasting(player));
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerIsCastPublic(lua_State* L)
+{
+	// player:isCastPublic()
+	const Player* player = getUserdata<const Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	pushBoolean(L, Casts::isPublicCast(player));
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerGetCastViewerCount(lua_State* L)
+{
+	// player:getCastViewerCount()
+	const Player* player = getUserdata<const Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_pushnumber(L, Casts::getPublicViewerCount(player));
 	return 1;
 }
 
@@ -16514,13 +16600,13 @@ int LuaScriptInterface::luaGlobalEventRegister(lua_State* L)
 			pushBoolean(L, false);
 			return 1;
 		}
-		
+
 		if (globalevent->getEventType() == GLOBALEVENT_NONE && globalevent->getInterval() == 0) {
 			std::cout << "[Error - LuaScriptInterface::luaGlobalEventRegister] No interval for globalevent with name " << globalevent->getName() << std::endl;
 			pushBoolean(L, false);
 			return 1;
 		}
-		
+
 		pushBoolean(L, g_globalEvents->registerLuaEvent(globalevent));
 	} else {
 		lua_pushnil(L);

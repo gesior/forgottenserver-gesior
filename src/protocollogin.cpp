@@ -11,6 +11,7 @@
 #include "configmanager.h"
 #include "iologindata.h"
 #include "ban.h"
+#include "casts.h"
 #include "game.h"
 
 extern ConfigManager g_config;
@@ -128,6 +129,84 @@ void ProtocolLogin::getCharacterList(const std::string& accountName, const std::
 	disconnect();
 }
 
+void ProtocolLogin::getCastsList(const std::string& accountName, const std::string& password, uint16_t version)
+{
+	auto connection = getConnection();
+	if (!connection) {
+		return;
+	}
+
+	const bool adminMode = Casts::isAdminCastAccount(accountName);
+
+	std::string errorMessage;
+	if (Casts::canJoinCast(nullptr, adminMode, password, errorMessage) != CastLoginStatus::Allowed) {
+		disconnectClient(errorMessage, version);
+		return;
+	}
+
+	std::vector<CastEntryInfo> entries = adminMode ? Casts::getAdminTargetsForLoginList() : Casts::getPublicCastsForLoginList(password);
+	if (entries.empty()) {
+		disconnectClient(adminMode ? "There are currently no players online." : "There are currently no active casts.", version);
+		return;
+	}
+
+	const uint32_t ticks = static_cast<uint32_t>(time(nullptr) / AUTHENTICATOR_PERIOD);
+	auto output = OutputMessagePool::getOutputMessage();
+
+	// Add session key
+	output->addByte(0x28);
+	output->addString(accountName + "\n" + password + "\n\n" + std::to_string(ticks));
+
+	// Add cast list as character list
+	output->addByte(0x64);
+
+	const uint8_t size = static_cast<uint8_t>(std::min<size_t>(std::numeric_limits<uint8_t>::max(), entries.size()));
+
+	std::string worldIp;
+	if (connection->isOtcProxy()) {
+		worldIp = "127.0.0.1";
+	} else if (connection->isHaProxy()) {
+		const std::string& statusIp = g_config.getString(ConfigManager::STATUS_IP);
+		worldIp = !statusIp.empty() ? statusIp : g_config.getString(ConfigManager::IP);
+	} else {
+		worldIp = g_config.getString(ConfigManager::IP);
+	}
+	const uint16_t gamePort = static_cast<uint16_t>(g_config.getNumber(ConfigManager::GAME_PORT));
+
+	output->addByte(size);
+	for (uint8_t i = 0; i < size; ++i) {
+		const CastEntryInfo& entry = entries[i];
+		output->addByte(i);
+		if (adminMode) {
+			output->addString(fmt::format("Lvl {:d}", entry.level));
+		} else {
+			std::string worldName = fmt::format("{:d} {:s} | Lvl {:d}", entry.publicViewers, (entry.publicViewers == 1 ? "viewer" : "viewers"), entry.level);
+			if (entry.passwordProtected) {
+				worldName += " PASS";
+			}
+			output->addString(worldName);
+		}
+		output->addString(worldIp);
+		output->add<uint16_t>(gamePort);
+		output->addByte(0);
+	}
+
+	output->addByte(size);
+	for (uint8_t i = 0; i < size; ++i) {
+		output->addByte(i);
+		output->addString(entries[i].name);
+	}
+
+	// Account status (OK, Unlimited)
+	output->addByte(0);
+	output->addByte(1);
+	output->add<uint32_t>(0);
+
+	send(output);
+
+	disconnect();
+}
+
 void ProtocolLogin::onRecvFirstMessage(NetworkMessage& msg)
 {
 	if (g_game.getGameState() == GAME_STATE_SHUTDOWN) {
@@ -205,6 +284,11 @@ void ProtocolLogin::onRecvFirstMessage(NetworkMessage& msg)
 	}
 
 	std::string password = msg.getString();
+	if (Casts::isCastAccount(accountName) || Casts::isAdminCastAccount(accountName)) {
+		auto thisPtr = std::static_pointer_cast<ProtocolLogin>(shared_from_this());
+		g_dispatcher.addTask(createTask(std::bind(&ProtocolLogin::getCastsList, thisPtr, accountName, password, version)));
+		return;
+	}
 	if (password.empty()) {
 		disconnectClient("Invalid password.", version);
 		return;

@@ -4,10 +4,12 @@
 #include "otpch.h"
 
 #include "bed.h"
+#include "casts.h"
 #include "chat.h"
 #include "combat.h"
 #include "configmanager.h"
 #include "creatureevent.h"
+#include "databasetasks.h"
 #include "events.h"
 #include "game.h"
 #include "iologindata.h"
@@ -24,6 +26,15 @@ extern MoveEvents* g_moveEvents;
 extern Weapons* g_weapons;
 extern CreatureEvents* g_creatureEvents;
 extern Events* g_events;
+
+#define BROADCAST_CAST(statement) \
+	do { \
+		if (castHasViewers) { \
+			for (const auto& viewer : Casts::getViewerProtocols(this)) { \
+				statement; \
+			} \
+		} \
+	} while (false)
 
 MuteCountMap Player::muteCountMap;
 
@@ -701,10 +712,28 @@ bool Player::getStorageValue(const uint32_t key, int32_t& value) const
 
 bool Player::canSee(const Position& pos) const
 {
-	if (!client) {
-		return false;
+	if (client) {
+		return client->canSee(pos);
 	}
-	return client->canSee(pos);
+	if (castHasViewers) {
+		const Position& myPos = getPosition();
+		if (myPos.z <= 7) {
+			if (pos.z > 7) {
+				return false;
+			}
+		} else if (std::abs(myPos.getZ() - pos.getZ()) > 2) {
+			return false;
+		}
+
+		const int32_t offsetz = myPos.getZ() - pos.getZ();
+		if ((pos.getX() >= myPos.getX() - Map::maxClientViewportX + offsetz) &&
+		    (pos.getX() <= myPos.getX() + (Map::maxClientViewportX + 1) + offsetz) &&
+		    (pos.getY() >= myPos.getY() - Map::maxClientViewportY + offsetz) &&
+		    (pos.getY() <= myPos.getY() + (Map::maxClientViewportY + 1) + offsetz)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool Player::canSeeCreature(const Creature* creature) const
@@ -845,6 +874,9 @@ void Player::sendStats()
 {
 	if (client) {
 		client->sendStats();
+	}
+	BROADCAST_CAST(viewer->sendStats());
+	if (client || castHasViewers) {
 		lastStatsTrainingTime = getOfflineTrainingTime() / 60 / 1000;
 	}
 }
@@ -861,6 +893,7 @@ void Player::sendPing()
 		} else {
 			hasLostConnection = true;
 		}
+		BROADCAST_CAST(viewer->sendPing());
 	}
 
 	int64_t noPongTime = timeNow - lastPong;
@@ -944,7 +977,7 @@ void Player::sendHouseWindow(House* house, uint32_t listId) const
 //container
 void Player::sendAddContainerItem(const Container* container, const Item* item)
 {
-	if (!client) {
+	if (!client && !castHasViewers) {
 		return;
 	}
 
@@ -969,14 +1002,17 @@ void Player::sendAddContainerItem(const Container* container, const Item* item)
 		}
 
 		if (item) {
-			client->sendAddContainerItem(it.first, slot, item);
+			if (client) {
+				client->sendAddContainerItem(it.first, slot, item);
+			}
+			BROADCAST_CAST(viewer->sendAddContainerItem(it.first, slot, item));
 		}
 	}
 }
 
 void Player::sendUpdateContainerItem(const Container* container, uint16_t slot, const Item* newItem)
 {
-	if (!client) {
+	if (!client && !castHasViewers) {
 		return;
 	}
 
@@ -995,13 +1031,16 @@ void Player::sendUpdateContainerItem(const Container* container, uint16_t slot, 
 			continue;
 		}
 
-		client->sendUpdateContainerItem(it.first, slot, newItem);
+		if (client) {
+			client->sendUpdateContainerItem(it.first, slot, newItem);
+		}
+		BROADCAST_CAST(viewer->sendUpdateContainerItem(it.first, slot, newItem));
 	}
 }
 
 void Player::sendRemoveContainerItem(const Container* container, uint16_t slot)
 {
-	if (!client) {
+	if (!client && !castHasViewers) {
 		return;
 	}
 
@@ -1017,7 +1056,12 @@ void Player::sendRemoveContainerItem(const Container* container, uint16_t slot)
 			sendContainer(it.first, container, false, firstIndex);
 		}
 
-		client->sendRemoveContainerItem(it.first, std::max<uint16_t>(slot, firstIndex), container->getItemByIndex(container->capacity() + firstIndex));
+		const uint16_t removeSlot = std::max<uint16_t>(slot, firstIndex);
+		const Item* lastItem = container->getItemByIndex(container->capacity() + firstIndex);
+		if (client) {
+			client->sendRemoveContainerItem(it.first, removeSlot, lastItem);
+		}
+		BROADCAST_CAST(viewer->sendRemoveContainerItem(it.first, removeSlot, lastItem));
 	}
 }
 
@@ -1356,20 +1400,20 @@ void Player::onRemoveContainerItem(const Container* container, const Item* item)
 
 void Player::onCloseContainer(const Container* container)
 {
-	if (!client) {
+	if (!client && !castHasViewers) {
 		return;
 	}
 
 	for (const auto& it : openContainers) {
 		if (it.second.container == container) {
-			client->sendCloseContainer(it.first);
+			sendCloseContainer(it.first);
 		}
 	}
 }
 
 void Player::onSendContainer(const Container* container)
 {
-	if (!client) {
+	if (!client && !castHasViewers) {
 		return;
 	}
 
@@ -1377,7 +1421,7 @@ void Player::onSendContainer(const Container* container)
 	for (const auto& it : openContainers) {
 		const OpenContainer& openContainer = it.second;
 		if (openContainer.container == container) {
-			client->sendContainer(it.first, container, hasParent, openContainer.index);
+			sendContainer(it.first, container, hasParent, openContainer.index);
 		}
 	}
 }
@@ -1502,6 +1546,27 @@ void Player::onThink(uint32_t interval)
 	addOfflineTrainingTime(interval);
 	if (lastStatsTrainingTime != getOfflineTrainingTime() / 60 / 1000) {
 		sendStats();
+	}
+
+	if (!isRemoved() && guid != 0) {
+		const int32_t currentCastViewers = Casts::getDatabaseViewerValue(this);
+		auto castMessageType = static_cast<MessageClasses>(0);
+		if (time(nullptr) >= lastCastViewerMessageTime + 10) {
+			castMessageType = MESSAGE_STATUS_DEFAULT;
+		}
+
+		if (currentCastViewers != lastSavedCastViewers) {
+			lastSavedCastViewers = currentCastViewers;
+			g_databaseTasks.addTask(fmt::format("UPDATE `players` SET `cast_viewers` = {:d} WHERE `id` = {:d}", currentCastViewers, guid));
+			castMessageType = MESSAGE_STATUS_CONSOLE_BLUE;
+		}
+
+		if (currentCastViewers >= 0 && castMessageType != static_cast<MessageClasses>(0)) {
+			lastCastViewerMessageTime = time(nullptr);
+			const char* viewerWord = currentCastViewers == 1 ? "viewer is" : "viewers are";
+			TextMessage message(castMessageType, fmt::format("{:d} {:s} watching your cast.", currentCastViewers, viewerWord));
+			sendTextMessage(message);
+		}
 	}
 }
 
@@ -2198,6 +2263,12 @@ void Player::removeList()
 	for (const auto& it : g_game.getPlayers()) {
 		it.second->notifyStatusChange(this, VIPSTATUS_OFFLINE);
 	}
+
+	Casts::onPlayerRemoved(this);
+	if (lastSavedCastViewers != -1 && guid != 0) {
+		lastSavedCastViewers = -1;
+		g_databaseTasks.addTask(fmt::format("UPDATE `players` SET `cast_viewers` = -1 WHERE `id` = {:d}", guid));
+	}
 }
 
 void Player::addList()
@@ -2207,6 +2278,9 @@ void Player::addList()
 	}
 
 	g_game.addPlayer(this);
+
+	lastSavedCastViewers = -1;
+	Casts::onPlayerAdded(this);
 }
 
 void Player::kickPlayer(bool displayEffect)
@@ -2307,9 +2381,7 @@ void Player::autoCloseContainers(const Container* container)
 
 	for (uint32_t containerId : closeList) {
 		closeContainer(containerId);
-		if (client) {
-			client->sendCloseContainer(containerId);
-		}
+		sendCloseContainer(static_cast<uint8_t>(containerId));
 	}
 }
 
@@ -3157,9 +3229,7 @@ bool Player::updateSaleShopList(const Item* item)
 		}
 	}
 
-	if (client) {
-		client->sendSaleItemList(shopItemList);
-	}
+	sendSaleItemList();
 	return true;
 }
 
@@ -4532,6 +4602,7 @@ void Player::sendClosePrivate(uint16_t channelId)
 	if (client) {
 		client->sendClosePrivate(channelId);
 	}
+	BROADCAST_CAST(viewer->sendClosePrivate(channelId));
 }
 
 uint64_t Player::getMoney() const
@@ -4646,3 +4717,5 @@ void Player::updateRegeneration()
 		condition->setParam(CONDITION_PARAM_MANATICKS, vocation->getManaGainTicks() * 1000);
 	}
 }
+
+#undef BROADCAST_CAST

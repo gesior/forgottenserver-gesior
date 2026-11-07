@@ -17,6 +17,7 @@
 #include "iologindata.h"
 #include "iomarket.h"
 #include "ban.h"
+#include "casts.h"
 #include "scheduler.h"
 
 extern ConfigManager g_config;
@@ -125,6 +126,14 @@ std::size_t clientLogin(const Player& player)
 void ProtocolGame::release()
 {
 	//dispatcher thread
+	isReleased = true;
+	if (isCast) {
+		Casts::removeViewer(getThis());
+		setCastTarget(nullptr);
+		OutputMessagePool::getInstance().removeProtocolFromAutosend(shared_from_this());
+		Protocol::release();
+		return;
+	}
 	if (player && player->client == shared_from_this()) {
 		player->client.reset();
 		player->decrementReferenceCounter();
@@ -308,6 +317,245 @@ void ProtocolGame::logout(bool displayEffect, bool forced)
 	g_game.removeCreature(player);
 }
 
+void ProtocolGame::setCastTarget(Player* newTarget)
+{
+	if (player == newTarget) {
+		return;
+	}
+
+	if (player) {
+		player->decrementReferenceCounter();
+	}
+	player = newTarget;
+	if (player) {
+		player->incrementReferenceCounter();
+	}
+}
+
+void ProtocolGame::loginCast(const std::string& targetName, const std::string& password, bool adminMode)
+{
+	//dispatcher thread
+	if (isReleased || isConnectionExpired()) {
+		return;
+	}
+
+	Player* target = g_game.getPlayerByName(targetName);
+	if (!target) {
+		disconnectClient("Target player is offline.");
+		return;
+	}
+
+	std::string errorMessage;
+	if (Casts::canJoinCast(target, adminMode, password, errorMessage) != CastLoginStatus::Allowed) {
+		disconnectClient(errorMessage);
+		return;
+	}
+
+	setCastTarget(target);
+
+	if (!Casts::addViewer(target, getThis(), adminMode)) {
+		setCastTarget(nullptr);
+		disconnectClient("Unable to join cast.");
+		return;
+	}
+
+	if (!adminMode) {
+		castPassword = password;
+	}
+
+	acceptPackets = true;
+	OutputMessagePool::getInstance().addProtocolToAutosend(shared_from_this());
+	sendCastWorldState();
+}
+
+void ProtocolGame::syncOpenCastChannels()
+{
+	if (!player || !g_chat) {
+		return;
+	}
+
+	for (uint16_t channelId = 2; channelId <= 15; ++channelId) {
+		ChatChannel* channel = g_chat->getChannelById(channelId);
+		if (channel && channel->hasUser(*player) && canViewerSeeChannel(channelId)) {
+			sendChannel(channel->getId(), channel->getName(), channel->isPublicChannel() ? nullptr : &channel->getUsers(), channel->getInvitedUsers());
+		}
+	}
+
+	if (isCastAdmin) {
+		if (Guild* guild = player->getGuild()) {
+			if (ChatChannel* guildChannel = g_chat->getGuildChannelById(guild->getId())) {
+				if (guildChannel->hasUser(*player)) {
+					sendChannel(guildChannel->getId(), guildChannel->getName(), &guildChannel->getUsers(), guildChannel->getInvitedUsers());
+				}
+			}
+		}
+
+		if (player->getParty()) {
+			if (ChatChannel* partyChannel = g_chat->getChannel(*player, CHANNEL_PARTY)) {
+				if (partyChannel->hasUser(*player)) {
+					sendChannel(partyChannel->getId(), partyChannel->getName(), &partyChannel->getUsers(), partyChannel->getInvitedUsers());
+				}
+			}
+		}
+
+		if (PrivateChatChannel* privChannel = g_chat->getPrivateChannel(*player)) {
+			if (privChannel->hasUser(*player)) {
+				sendChannel(privChannel->getId(), privChannel->getName(), &privChannel->getUsers(), privChannel->getInvitedUsers());
+			}
+		}
+	}
+}
+
+void ProtocolGame::closeOpenedCastChannels()
+{
+	for (uint16_t channelId : openedCastChannels) {
+		NetworkMessage msg;
+		msg.addByte(0xB3);
+		msg.add<uint16_t>(channelId);
+		writeToOutputBuffer(msg);
+	}
+	openedCastChannels.clear();
+}
+
+void ProtocolGame::sendCastWorldState()
+{
+	if (!player || player->isRemoved()) {
+		return;
+	}
+
+	knownCreatureSet.clear();
+	sendAddCreature(player, player->getPosition(), 0, false);
+	sendItems();
+	sendFightModes();
+
+	for (const auto& entry : player->openContainers) {
+		const OpenContainer& openContainer = entry.second;
+		if (openContainer.container) {
+			sendContainer(entry.first, openContainer.container, openContainer.container->hasParent(), openContainer.index);
+		}
+	}
+
+	syncOpenCastChannels();
+
+	if (isCastAdmin) {
+		sendCastSystemMessage(MESSAGE_STATUS_CONSOLE_BLUE, fmt::format("[Admin Cast] Now watching: {:s} (Level {:d}). Use Ctrl+arrows or /sc <name> to switch.", player->getName(), player->getLevel()));
+	} else {
+		sendCastSystemMessage(MESSAGE_STATUS_CONSOLE_BLUE, fmt::format("Now watching: {:s} (Level {:d}). Use Ctrl+arrows or /sc <name> to switch casts.", player->getName(), player->getLevel()));
+	}
+}
+
+void ProtocolGame::switchCastTarget(Player* newTarget)
+{
+	if (!newTarget || newTarget->isRemoved()) {
+		setCastTarget(nullptr);
+		return;
+	}
+
+	setCastTarget(newTarget);
+	if (isReleased || isConnectionExpired()) {
+		return;
+	}
+
+	for (uint8_t cid = 0; cid < 16; ++cid) {
+		sendCloseContainer(cid);
+	}
+	closeOpenedCastChannels();
+
+	sendCastWorldState();
+}
+
+void ProtocolGame::disconnectCastViewer(const std::string& message)
+{
+	isReleased = true;
+	setCastTarget(nullptr);
+	acceptPackets = false;
+	if (auto& pending = getCurrentBuffer()) {
+		send(std::move(pending));
+	}
+	disconnectClient(message);
+}
+
+void ProtocolGame::handleCastSay(const std::string& text)
+{
+	if (isReleased || isConnectionExpired()) {
+		return;
+	}
+
+	size_t start = text.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) {
+		return;
+	}
+
+	size_t end = text.find_last_not_of(" \t\r\n");
+	std::string trimmed = text.substr(start, end - start + 1);
+
+	if (trimmed.size() >= 3 && trimmed[0] == '/' &&
+	    std::tolower(static_cast<unsigned char>(trimmed[1])) == 's' &&
+	    std::tolower(static_cast<unsigned char>(trimmed[2])) == 'c') {
+		if (trimmed.size() == 3) {
+			sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Usage: /sc <player name>");
+			return;
+		}
+
+		if (std::isspace(static_cast<unsigned char>(trimmed[3])) != 0) {
+			std::string param = trimmed.substr(4);
+			size_t pStart = param.find_first_not_of(" \t\"");
+			if (pStart == std::string::npos) {
+				sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Usage: /sc <player name>");
+				return;
+			}
+			size_t pEnd = param.find_last_not_of(" \t\"");
+			std::string targetName = param.substr(pStart, pEnd - pStart + 1);
+			if (targetName.empty()) {
+				sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Usage: /sc <player name>");
+				return;
+			}
+			Casts::switchCastByName(getThis(), targetName);
+			return;
+		}
+	}
+
+	if (trimmed[0] == '/') {
+		sendCastSystemMessage(MESSAGE_STATUS_SMALL, "Available cast command: /sc <player name>");
+	}
+}
+
+void ProtocolGame::handleCastPingBack()
+{
+	if (isReleased || isConnectionExpired()) {
+		return;
+	}
+	sendPingBack();
+}
+
+void ProtocolGame::handleCastCancelWalk()
+{
+	if (isReleased || isConnectionExpired() || !player) {
+		return;
+	}
+	sendCancelWalk();
+}
+
+void ProtocolGame::handleCastDisconnect()
+{
+	if (isReleased || isConnectionExpired()) {
+		return;
+	}
+	disconnect();
+}
+
+bool ProtocolGame::canViewerSeeChannel(uint16_t channelId) const
+{
+	if (!isCast || isCastAdmin) {
+		return true;
+	}
+	if (channelId == CHANNEL_GUILD || channelId == CHANNEL_PARTY || channelId == CHANNEL_PRIVATE) {
+		return false;
+	}
+	const ChatChannel* channel = g_chat ? g_chat->getChannelById(channelId) : nullptr;
+	return channel != nullptr && channel->isPublicChannel();
+}
+
 void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg)
 {
 	if (g_game.getGameState() == GAME_STATE_SHUTDOWN) {
@@ -404,6 +652,14 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg)
 		return;
 	}
 
+	if (Casts::isCastAccount(accountName) || Casts::isAdminCastAccount(accountName)) {
+		const bool adminMode = Casts::isAdminCastAccount(accountName);
+		isCast = true;
+		isCastAdmin = adminMode;
+		g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::loginCast, getThis(), characterName, password, adminMode)));
+		return;
+	}
+
 	uint32_t accountId = IOLoginData::gameworldAuthentication(accountName, password, characterName, token, tokenTime);
 	if (accountId == 0) {
 		disconnectClient("Account name or password is not correct.");
@@ -463,6 +719,69 @@ void ProtocolGame::parsePacket(NetworkMessage& msg)
 	}
 
 	uint8_t recvbyte = msg.getByte();
+
+	if (isCast) {
+		switch (recvbyte) {
+			case 0x14: // logout
+				g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::handleCastDisconnect, getThis())));
+				break;
+			case 0x1D: // ping from viewer client -> reply pingBack on dispatcher
+				g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::handleCastPingBack, getThis())));
+				break;
+			case 0x1E: // pong from viewer client (Connection::readTimer already reset)
+				break;
+			case 0x65: // move north
+			case 0x66: // move east
+			case 0x67: // move south
+			case 0x68: { // move west
+				const Direction dir = static_cast<Direction>(recvbyte - 0x65);
+				g_dispatcher.addTask(createTask(std::bind(&Casts::switchCastByDirection, getThis(), dir)));
+				break;
+			}
+			case 0x6F: // turn north (Ctrl + Up)
+			case 0x70: // turn east (Ctrl + Right)
+			case 0x71: // turn south (Ctrl + Down)
+			case 0x72: { // turn west (Ctrl + Left)
+				const Direction dir = static_cast<Direction>(recvbyte - 0x6F);
+				g_dispatcher.addTask(createTask(std::bind(&Casts::switchCastByDirection, getThis(), dir)));
+				break;
+			}
+			case 0x96: { // say -> handle only /sc <name>
+				SpeakClasses type = static_cast<SpeakClasses>(msg.getByte());
+				switch (type) {
+					case TALKTYPE_PRIVATE_TO:
+					case TALKTYPE_PRIVATE_RED_TO:
+						msg.getString();
+						break;
+					case TALKTYPE_CHANNEL_Y:
+					case TALKTYPE_CHANNEL_R1:
+						msg.get<uint16_t>();
+						break;
+					default:
+						break;
+				}
+				const std::string text = msg.getString();
+				if (text.length() <= 255) {
+					g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::handleCastSay, getThis(), text)));
+				}
+				break;
+			}
+			case 0x69: // stop autowalk
+			case 0xBE:
+				g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::handleCastCancelWalk, getThis())));
+				break;
+			default:
+				if (recvbyte == 0x64 || (recvbyte >= 0x6A && recvbyte <= 0x6D)) {
+					g_dispatcher.addTask(createTask(std::bind(&ProtocolGame::handleCastCancelWalk, getThis())));
+				}
+				break;
+		}
+
+		if (msg.isOverrun()) {
+			disconnect();
+		}
+		return;
+	}
 
 	if (!player) {
 		if (recvbyte == 0x0F) {
@@ -1239,6 +1558,10 @@ void ProtocolGame::sendOpenPrivateChannel(const std::string& receiver)
 
 void ProtocolGame::sendChannelEvent(uint16_t channelId, const std::string& playerName, ChannelEvent_t channelEvent)
 {
+	if (!canViewerSeeChannel(channelId)) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xF3);
 	msg.add<uint16_t>(channelId);
@@ -1408,6 +1731,10 @@ void ProtocolGame::sendBasicData()
 
 void ProtocolGame::sendTextMessage(const TextMessage& message)
 {
+	if (isCast && !isCastAdmin && (message.type == MESSAGE_GUILD || message.type == MESSAGE_PARTY_MANAGEMENT || message.type == MESSAGE_PARTY)) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xB4);
 	msg.addByte(message.type);
@@ -1446,6 +1773,13 @@ void ProtocolGame::sendTextMessage(const TextMessage& message)
 
 void ProtocolGame::sendClosePrivate(uint16_t channelId)
 {
+	if (!canViewerSeeChannel(channelId)) {
+		return;
+	}
+	if (isCast) {
+		openedCastChannels.erase(channelId);
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xB3);
 	msg.add<uint16_t>(channelId);
@@ -1454,6 +1788,13 @@ void ProtocolGame::sendClosePrivate(uint16_t channelId)
 
 void ProtocolGame::sendCreatePrivateChannel(uint16_t channelId, const std::string& channelName)
 {
+	if (isCast && !isCastAdmin) {
+		return;
+	}
+	if (isCast) {
+		openedCastChannels.insert(channelId);
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xB2);
 	msg.add<uint16_t>(channelId);
@@ -1481,6 +1822,13 @@ void ProtocolGame::sendChannelsDialog()
 
 void ProtocolGame::sendChannel(uint16_t channelId, const std::string& channelName, const UsersMap* channelUsers, const InvitedMap* invitedUsers)
 {
+	if (!canViewerSeeChannel(channelId)) {
+		return;
+	}
+	if (isCast) {
+		openedCastChannels.insert(channelId);
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xAC);
 
@@ -1509,6 +1857,10 @@ void ProtocolGame::sendChannel(uint16_t channelId, const std::string& channelNam
 
 void ProtocolGame::sendChannelMessage(const std::string& author, const std::string& text, SpeakClasses type, uint16_t channel)
 {
+	if (!canViewerSeeChannel(channel)) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xAA);
 	msg.add<uint32_t>(0x00);
@@ -2224,6 +2576,10 @@ void ProtocolGame::sendCreatureSay(const Creature* creature, SpeakClasses type, 
 
 void ProtocolGame::sendToChannel(const Creature* creature, SpeakClasses type, const std::string& text, uint16_t channelId)
 {
+	if (!canViewerSeeChannel(channelId)) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xAA);
 
@@ -2249,6 +2605,10 @@ void ProtocolGame::sendToChannel(const Creature* creature, SpeakClasses type, co
 
 void ProtocolGame::sendPrivateMessage(const Player* speaker, SpeakClasses type, const std::string& text)
 {
+	if (isCast && !isCastAdmin && type != TALKTYPE_BROADCAST) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xAA);
 	static uint32_t statementId = 0;
@@ -2284,6 +2644,10 @@ void ProtocolGame::sendChangeSpeed(const Creature* creature, uint32_t speed)
 
 void ProtocolGame::sendCancelWalk()
 {
+	if (!player) {
+		return;
+	}
+
 	NetworkMessage msg;
 	msg.addByte(0xB5);
 	msg.addByte(player->getDirection());
@@ -2577,10 +2941,16 @@ void ProtocolGame::sendAddCreature(const Creature* creature, const Position& pos
 	//player light level
 	sendCreatureLight(creature);
 
-	sendVIPEntries();
+	if (!isCast) {
+		sendVIPEntries();
+	}
 
 	sendBasicData();
-	player->sendIcons();
+	if (isCast) {
+		sendIcons(player->getClientIcons());
+	} else {
+		player->sendIcons();
+	}
 }
 
 void ProtocolGame::sendMoveCreature(const Creature* creature, const Position& newPos, int32_t newStackPos, const Position& oldPos, int32_t oldStackPos, bool teleport)
