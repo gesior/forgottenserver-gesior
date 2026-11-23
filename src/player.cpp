@@ -1568,6 +1568,10 @@ void Player::onThink(uint32_t interval)
 			sendTextMessage(message);
 		}
 	}
+
+	if (client && tile && !isRemoved()) {
+		client->checkCamSync();
+	}
 }
 
 uint32_t Player::isMuted() const

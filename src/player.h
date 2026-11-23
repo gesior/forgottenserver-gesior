@@ -1215,6 +1215,11 @@ class Player final : public Creature, public Cylinder
 				client->writeToOutputBuffer(message);
 			}
 		}
+		void addCustomDataToCam(const NetworkMessage& message) const {
+			if (client) {
+				client->addCustomDataToCam(message);
+			}
+		}
 
 		bool hasCastViewers() const {
 			return castHasViewers;

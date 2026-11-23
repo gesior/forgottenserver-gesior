@@ -111,7 +111,7 @@ bool ChatChannel::removeUser(const Player& player)
 	return true;
 }
 
-bool ChatChannel::hasUser(const Player& player) {
+bool ChatChannel::hasUser(const Player& player) const {
 	return users.find(player.getID()) != users.end();
 }
 
@@ -618,4 +618,35 @@ PrivateChatChannel* Chat::getPrivateChannel(const Player& player)
 		}
 	}
 	return nullptr;
+}
+
+void Chat::getOpenChannelsForPlayer(const Player& player, std::vector<const ChatChannel*>& outChannels) const
+{
+	outChannels.clear();
+
+	for (const auto& entry : normalChannels) {
+		if (entry.second.hasUser(player)) {
+			outChannels.push_back(&entry.second);
+		}
+	}
+
+	if (const Guild* guild = player.getGuild()) {
+		auto it = guildChannels.find(guild->getId());
+		if (it != guildChannels.end() && it->second.hasUser(player)) {
+			outChannels.push_back(&it->second);
+		}
+	}
+
+	if (Party* party = player.getParty()) {
+		auto it = partyChannels.find(party);
+		if (it != partyChannels.end() && it->second.hasUser(player)) {
+			outChannels.push_back(&it->second);
+		}
+	}
+
+	for (const auto& entry : privateChannels) {
+		if (entry.second.hasUser(player)) {
+			outChannels.push_back(&entry.second);
+		}
+	}
 }

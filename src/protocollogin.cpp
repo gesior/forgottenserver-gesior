@@ -13,9 +13,137 @@
 #include "ban.h"
 #include "casts.h"
 #include "game.h"
+#include "vocation.h"
+
+#include <cctype>
+#include <fmt/chrono.h>
 
 extern ConfigManager g_config;
 extern Game g_game;
+extern Vocations g_vocations;
+
+namespace {
+
+std::string vocationAbbreviation(uint16_t vocationId)
+{
+	Vocation* vocation = g_vocations.getVocation(vocationId);
+	if (!vocation) {
+		return "N";
+	}
+
+	std::string abbreviation;
+	bool takeNext = true;
+	for (unsigned char ch : vocation->getVocName()) {
+		if (ch == ' ') {
+			takeNext = true;
+			continue;
+		}
+		if (takeNext) {
+			abbreviation.push_back(static_cast<char>(std::toupper(ch)));
+			takeNext = false;
+		}
+	}
+	return abbreviation.empty() ? "N" : abbreviation;
+}
+
+std::string trimCopy(std::string value)
+{
+	const auto notSpace = [](unsigned char ch) { return std::isspace(ch) == 0; };
+	value.erase(value.begin(), std::find_if(value.begin(), value.end(), notSpace));
+	value.erase(std::find_if(value.rbegin(), value.rend(), notSpace).base(), value.end());
+	return value;
+}
+
+// Format cam start time safely; invalid DB timestamps throw fmt::format_error in fmt::localtime.
+std::string formatCamDate(time_t timestamp)
+{
+	if (timestamp > 0) {
+		try {
+			return fmt::format("{:%Y-%m-%d %H:%M:%S}", fmt::localtime(timestamp));
+		} catch (const fmt::format_error&) {
+		}
+	}
+	return "[NO TIME]";
+}
+
+std::string formatAccountCamName(const AccountCam& cam, bool useTitle)
+{
+	std::string label = cam.playerName.empty() ? "Unknown" : cam.playerName;
+	if (useTitle) {
+		std::string title = trimCopy(cam.title);
+		if (!title.empty()) {
+			label = std::move(title);
+		}
+	}
+
+	if (label.size() > 25) {
+		label.resize(22);
+		label += "...";
+	}
+
+	return fmt::format("{} {}, {:d} {};{:X}", formatCamDate(cam.dateStart), label, cam.level, vocationAbbreviation(cam.vocationId), cam.id);
+}
+
+constexpr uint32_t CAM_PUBLIC_PAGE_SIZE = 50;
+constexpr uint64_t CAM_PUBLIC_MAX_PAGES = 100;
+constexpr uint32_t CAM_LIST_HARD_LIMIT = 255;
+
+enum class CamPasswordKind { PublicPage, AccessCode, InvalidPage };
+
+struct CamPassword {
+	CamPasswordKind kind = CamPasswordKind::PublicPage;
+	uint64_t page = 1;
+};
+
+bool isCamAccount(const std::string& accountName)
+{
+	return strcasecmp(accountName.c_str(), "cam") == 0 || strcasecmp(accountName.c_str(), "cams") == 0;
+}
+
+CamPassword parseCamPassword(const std::string& password)
+{
+	if (password.empty()) {
+		return {CamPasswordKind::PublicPage, 1};
+	}
+
+	const bool allDigits = std::all_of(password.begin(), password.end(), [](unsigned char ch) {
+		return std::isdigit(ch) != 0;
+	});
+	if (allDigits && password.size() <= 9) {
+		uint64_t page = 0;
+		for (char ch : password) {
+			page = page * 10 + static_cast<uint64_t>(ch - '0');
+		}
+		if (page < 1) {
+			return {CamPasswordKind::InvalidPage, 0};
+		}
+		return {CamPasswordKind::PublicPage, page};
+	}
+
+	return {CamPasswordKind::AccessCode, 0};
+}
+
+std::string loginWorldIp(const Connection& connection)
+{
+	if (connection.isOtcProxy()) {
+		return "127.0.0.1";
+	}
+	if (connection.isHaProxy()) {
+		return g_config.getString(ConfigManager::STATUS_IP);
+	}
+	return g_config.getString(ConfigManager::IP);
+}
+
+std::string camWorldIp(const Connection& connection)
+{
+	const std::string& configured = g_config.getString(ConfigManager::CAM_PLAYER_IP);
+	if (!configured.empty()) {
+		return configured;
+	}
+	return loginWorldIp(connection);
+}
+
+} // namespace
 
 void ProtocolLogin::disconnectClient(const std::string& message, uint16_t version)
 {
@@ -68,50 +196,66 @@ void ProtocolLogin::getCharacterList(const std::string& accountName, const std::
 	output->addString(accountName + "\n" + password + "\n" + token + "\n" + std::to_string(ticks));
 
 	//Add char list
+	const bool onlineOffline = g_config.getBoolean(ConfigManager::ONLINE_OFFLINE_CHARLIST);
+	const uint8_t gameWorlds = onlineOffline ? 2 : 1;
+	const uint8_t characterCount = static_cast<uint8_t>(std::min<size_t>(CAM_LIST_HARD_LIMIT, account.characters.size()));
+	const int32_t camPlayerPort = g_config.getNumber(ConfigManager::CAM_PLAYER_PORT);
+	const uint32_t slotsLeft = CAM_LIST_HARD_LIMIT - characterCount;
+	const uint32_t configuredCams = static_cast<uint32_t>(std::max<int32_t>(0, g_config.getNumber(ConfigManager::CAM_ACCOUNT_LIST_SIZE)));
+	const uint32_t camLimit = std::min(configuredCams, slotsLeft);
+
+	std::vector<AccountCam> cams;
+	if (camPlayerPort > 0 && camLimit > 0) {
+		cams = IOLoginData::getAccountCams(account.id, camLimit);
+	}
+
+	const size_t camSlots = std::min(cams.size(), static_cast<size_t>(slotsLeft));
+	const bool showCams = camSlots > 0;
+	const uint8_t camWorldId = gameWorlds;
+	const std::string worldIp = loginWorldIp(*connection);
+	const std::string camIp = camWorldIp(*connection);
+
 	output->addByte(0x64);
+	output->addByte(static_cast<uint8_t>(gameWorlds + (showCams ? 1 : 0)));
 
-	uint8_t size = std::min<size_t>(std::numeric_limits<uint8_t>::max(), account.characters.size());
-
-	if (g_config.getBoolean(ConfigManager::ONLINE_OFFLINE_CHARLIST)) {
-		output->addByte(2); // number of worlds
-
-		for (uint8_t i = 0; i < 2; i++) {
+	if (onlineOffline) {
+		for (uint8_t i = 0; i < gameWorlds; i++) {
 			output->addByte(i); // world id
 			output->addString(i == 0 ? "Offline" : "Online");
-			if (connection->isOtcProxy()) {
-				output->addString("127.0.0.1");
-			} else if (connection->isHaProxy()) {
-				output->addString(g_config.getString(ConfigManager::STATUS_IP));
-			} else {
-				output->addString(g_config.getString(ConfigManager::IP));
-			}
+			output->addString(worldIp);
 			output->add<uint16_t>(g_config.getNumber(ConfigManager::GAME_PORT));
 			output->addByte(0);
 		}
 	} else {
-		output->addByte(1); // number of worlds
 		output->addByte(0); // world id
 		output->addString(g_config.getString(ConfigManager::SERVER_NAME));
-		if (connection->isOtcProxy()) {
-			output->addString("127.0.0.1");
-		} else if (connection->isHaProxy()) {
-			output->addString(g_config.getString(ConfigManager::STATUS_IP));
-		} else {
-			output->addString(g_config.getString(ConfigManager::IP));
-		}
+		output->addString(worldIp);
 		output->add<uint16_t>(g_config.getNumber(ConfigManager::GAME_PORT));
 		output->addByte(0);
 	}
 
-	output->addByte(size);
-	for (uint8_t i = 0; i < size; i++) {
+	if (showCams) {
+		output->addByte(camWorldId);
+		output->addString("Cam");
+		output->addString(camIp);
+		output->add<uint16_t>(static_cast<uint16_t>(camPlayerPort));
+		output->addByte(0);
+	}
+
+	output->addByte(static_cast<uint8_t>(characterCount + camSlots));
+	for (uint8_t i = 0; i < characterCount; i++) {
 		const std::string& character = account.characters[i];
-		if (g_config.getBoolean(ConfigManager::ONLINE_OFFLINE_CHARLIST)) {
+		if (onlineOffline) {
 			output->addByte(g_game.getPlayerByName(character) ? 1 : 0);
 		} else {
 			output->addByte(0);
 		}
 		output->addString(character);
+	}
+
+	for (size_t i = 0; i < camSlots; ++i) {
+		output->addByte(camWorldId);
+		output->addString(formatAccountCamName(cams[i], false));
 	}
 
 	//Add premium days
@@ -207,6 +351,79 @@ void ProtocolLogin::getCastsList(const std::string& accountName, const std::stri
 	disconnect();
 }
 
+void ProtocolLogin::getCamsList(const std::string& accountName, const std::string& password, uint16_t version)
+{
+	auto connection = getConnection();
+	if (!connection) {
+		return;
+	}
+
+	const int32_t camPlayerPort = g_config.getNumber(ConfigManager::CAM_PLAYER_PORT);
+	if (camPlayerPort <= 0 || camPlayerPort > 65535) {
+		disconnectClient("Cam player is disabled.", version);
+		return;
+	}
+
+	const CamPassword parsed = parseCamPassword(password);
+	if (parsed.kind == CamPasswordKind::InvalidPage) {
+		disconnectClient("Invalid page.", version);
+		return;
+	}
+
+	std::vector<AccountCam> cams;
+	if (parsed.kind == CamPasswordKind::PublicPage) {
+		if (parsed.page > CAM_PUBLIC_MAX_PAGES) {
+			disconnectClient(fmt::format("Only the first {:d} pages of public recordings are available.", CAM_PUBLIC_MAX_PAGES), version);
+			return;
+		}
+
+		cams = IOLoginData::getPublicCams(parsed.page, CAM_PUBLIC_PAGE_SIZE);
+		if (cams.empty()) {
+			disconnectClient(parsed.page == 1 ? "There are currently no public recordings." : "There are no public recordings on this page.", version);
+			return;
+		}
+	} else {
+		cams = IOLoginData::getCamsByAccessCode(password);
+		if (cams.empty()) {
+			disconnectClient("Recording not found or the access code is invalid.", version);
+			return;
+		}
+	}
+
+	if (cams.size() > CAM_LIST_HARD_LIMIT) {
+		cams.resize(CAM_LIST_HARD_LIMIT);
+	}
+
+	const uint32_t ticks = static_cast<uint32_t>(time(nullptr) / AUTHENTICATOR_PERIOD);
+	auto output = OutputMessagePool::getOutputMessage();
+
+	output->addByte(0x28);
+	output->addString(accountName + "\n" + password + "\n\n" + std::to_string(ticks));
+
+	output->addByte(0x64);
+	output->addByte(1);
+	output->addByte(0);
+	output->addString("Cam");
+	output->addString(camWorldIp(*connection));
+	output->add<uint16_t>(static_cast<uint16_t>(camPlayerPort));
+	output->addByte(0);
+
+	const bool useTitle = parsed.kind == CamPasswordKind::PublicPage;
+	const uint8_t size = static_cast<uint8_t>(cams.size());
+	output->addByte(size);
+	for (uint8_t i = 0; i < size; ++i) {
+		output->addByte(0);
+		output->addString(formatAccountCamName(cams[i], useTitle));
+	}
+
+	output->addByte(0);
+	output->addByte(1);
+	output->add<uint32_t>(0);
+
+	send(output);
+	disconnect();
+}
+
 void ProtocolLogin::onRecvFirstMessage(NetworkMessage& msg)
 {
 	if (g_game.getGameState() == GAME_STATE_SHUTDOWN) {
@@ -287,6 +504,11 @@ void ProtocolLogin::onRecvFirstMessage(NetworkMessage& msg)
 	if (Casts::isCastAccount(accountName) || Casts::isAdminCastAccount(accountName)) {
 		auto thisPtr = std::static_pointer_cast<ProtocolLogin>(shared_from_this());
 		g_dispatcher.addTask(createTask(std::bind(&ProtocolLogin::getCastsList, thisPtr, accountName, password, version)));
+		return;
+	}
+	if (isCamAccount(accountName)) {
+		auto thisPtr = std::static_pointer_cast<ProtocolLogin>(shared_from_this());
+		g_dispatcher.addTask(createTask(std::bind(&ProtocolLogin::getCamsList, thisPtr, accountName, password, version)));
 		return;
 	}
 	if (password.empty()) {

@@ -88,7 +88,11 @@ class Database
 		 *
 		 * @return id on success, 0 if last query did not result on any rows with auto_increment keys
 		 */
-		[[nodiscard]] uint64_t getLastInsertId() const { return static_cast<uint64_t>(mysql_insert_id(handle.get())); }
+		[[nodiscard]] uint64_t getLastInsertId() const
+			{
+				std::lock_guard<std::recursive_mutex> lockGuard(databaseLock);
+				return static_cast<uint64_t>(mysql_insert_id(handle.get()));
+			}
 
 		/**
 		 * Get database engine version
@@ -112,7 +116,7 @@ class Database
 		bool commit();
 
 		tfs::detail::Mysql_ptr handle = nullptr;
-		std::recursive_mutex databaseLock;
+		mutable std::recursive_mutex databaseLock;
 		uint64_t maxPacketSize = 1048576;
 		// Do not retry queries if we are in the middle of a transaction
 		bool retryQueries = true;

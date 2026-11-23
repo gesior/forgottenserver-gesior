@@ -219,3 +219,31 @@ castMaxViewers = 250
 castMaxViewersPerCast = 50
 -- empty password = no admin access allowed
 castAdminPassword = ""
+
+-- Cam System
+camsEnabled = false
+camsDir = "cams/"
+camsIncomingPackets = true
+-- remove unfinished .cam files left after a crash on next startup; if false, rename them to .cam.crash for tools/cam-mover/crash-mover.php
+camRemoveOnCrash = true
+-- RAM buffer size per recorded cam in KB
+camsBufferSize = 100
+-- time in seconds between disk writes per recorded cam
+camsSaveInterval = 30
+-- time in seconds between synchronization packets in recorded cams (for fast seeking/rewinding), 0 = disabled
+camsSyncInterval = 0
+-- maximum duration of a single recorded cam in seconds (rotates to a new cam when exceeded; minimum 10), 0 = unlimited
+camsMaxDuration = 60 * 60
+-- NOTE: an emergency-disable (limits below or a disk write error) keeps cams off until the server restarts,
+-- reloading the config does not enable them again
+-- maximum total RAM (in megabytes) used by the cam system; if exceeded, cam system emergency-disables to prevent OOM
+camsMaxTotalRam = 512
+-- safety circuit breaker queue limit (in megabytes); protects against frozen network mounts (NFS/SMB)
+camsMaxQueueRam = 128
+-- login character list: address of tools/cam-player (may be another machine)
+-- camPlayerPort 0 = do not append cams
+camPlayerPort = 7173
+-- empty camPlayerIp = same IP as the game world
+camPlayerIp = ""
+-- how many of this account's newest cams to append under the character list. 0 = none
+camAccountListSize = 5

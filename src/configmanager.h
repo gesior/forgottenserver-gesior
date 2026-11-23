@@ -56,6 +56,9 @@ class ConfigManager
 			ALLOW_HAPROXY,
 			ENABLE_LUA_DEBUG_COMMAND,
 			CAST_ENABLED,
+			CAMS_ENABLED,
+			CAMS_INCOMING_PACKETS,
+			CAM_REMOVE_ON_CRASH,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};
@@ -81,6 +84,8 @@ class ConfigManager
 			CONFIG_FILE,
 			STATUS_IP,
 			CAST_ADMIN_PASSWORD,
+			CAMS_DIR,
+			CAM_PLAYER_IP,
 
 			LAST_STRING_CONFIG /* this must be the last one */
 		};
@@ -131,6 +136,14 @@ class ConfigManager
 			DECAY_ITEMS_PER_EVENT_LIMIT,
 			CAST_MAX_VIEWERS,
 			CAST_MAX_VIEWERS_PER_CAST,
+			CAMS_BUFFER_SIZE,
+			CAMS_SAVE_INTERVAL,
+			CAMS_SYNC_INTERVAL,
+			CAMS_MAX_DURATION,
+			CAMS_MAX_TOTAL_RAM,
+			CAMS_MAX_QUEUE_RAM,
+			CAM_PLAYER_PORT,
+			CAM_ACCOUNT_LIST_SIZE,
 
 			LAST_INTEGER_CONFIG /* this must be the last one */
 		};

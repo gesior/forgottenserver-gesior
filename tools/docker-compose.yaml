@@ -1,0 +1,44 @@
+name: forgottenserver-cams
+
+services:
+  cam-mover:
+    build:
+      context: ./cam-mover
+    restart: always
+    env_file:
+      - ../.env
+    environment:
+      - CAMS_SOURCE_DIR=/srv/cams/
+      - CAMS_DEST_DIR=/srv/camsReady/
+    volumes:
+      - ../cams:/srv/cams
+      - ../cams-ready:/srv/camsReady
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  cam-player:
+    build:
+      context: ./cam-player
+    restart: always
+    ports:
+      - "7173:7173"
+    env_file:
+      - ../.env
+    environment:
+      - LISTEN_ADDR=0.0.0.0:7173
+      - CAMS_DIR=/srv/camsReady/
+      - RSA_KEY_PATH=/srv/key.pem
+      - CACHE_DIR=/srv/cache/
+    volumes:
+      - ../cams-ready:/srv/camsReady:ro
+      - ../key.pem:/srv/key.pem:ro
+      - cam_cache:/srv/cache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  cam_cache:

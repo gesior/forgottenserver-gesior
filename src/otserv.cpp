@@ -20,6 +20,7 @@
 #ifdef STATS_ENABLED
 #include "stats.h"
 #endif
+#include "cams.h"
 #include "databasetasks.h"
 #include "script.h"
 #include <fstream>
@@ -34,6 +35,7 @@ Scheduler g_scheduler;
 #ifdef STATS_ENABLED
 Stats g_stats;
 #endif
+Cams g_cams;
 
 Game g_game;
 ConfigManager g_config;
@@ -95,6 +97,7 @@ int main(int argc, char* argv[])
 #ifdef STATS_ENABLED
 		g_stats.shutdown();
 #endif
+		g_cams.shutdown();
 	}
 
 	g_scheduler.join();
@@ -103,6 +106,7 @@ int main(int argc, char* argv[])
 #ifdef STATS_ENABLED
 	g_stats.join();
 #endif
+	g_cams.join();
 	return 0;
 }
 
@@ -176,6 +180,7 @@ void mainLoader(int, char*[], ServiceManager* services)
 		startupErrorMessage("Unable to load " + configFile + "!");
 		return;
 	}
+	g_cams.startup();
 
 #ifdef _WIN32
 	const std::string& defaultPriority = g_config.getString(ConfigManager::DEFAULT_PRIORITY);

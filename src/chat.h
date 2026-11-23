@@ -24,7 +24,7 @@ class ChatChannel
 
 		bool addUser(Player& player);
 		bool removeUser(const Player& player);
-		bool hasUser(const Player& player);
+		bool hasUser(const Player& player) const;
 
 		bool talk(const Player& fromPlayer, SpeakClasses type, const std::string& text);
 		void sendToAll(const std::string& message, SpeakClasses type) const;
@@ -124,6 +124,7 @@ class Chat
 		bool talkToChannel(const Player& player, SpeakClasses type, const std::string& text, uint16_t channelId);
 
 		ChannelList getChannelList(const Player& player);
+		void getOpenChannelsForPlayer(const Player& player, std::vector<const ChatChannel*>& outChannels) const;
 
 		ChatChannel* getChannel(const Player& player, uint16_t channelId);
 		ChatChannel* getChannelById(uint16_t channelId);
